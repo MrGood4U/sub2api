@@ -76,6 +76,9 @@ const platformLabel = computed(() => {
   if (props.platform === 'anthropic') return 'Anthropic'
   if (props.platform === 'openai') return 'OpenAI'
   if (props.platform === 'antigravity') return 'Antigravity'
+  if (props.platform === 'deepseek') return 'DeepSeek'
+  if (props.platform === 'qwen') return 'Qwen'
+  if (props.platform === 'glm') return 'GLM'
   return 'Gemini'
 })
 
@@ -126,6 +129,15 @@ const platformClass = computed(() => {
   if (props.platform === 'antigravity') {
     return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
   }
+  if (props.platform === 'deepseek') {
+    return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+  }
+  if (props.platform === 'qwen') {
+    return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+  }
+  if (props.platform === 'glm') {
+    return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+  }
   return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
 })
 
@@ -138,6 +150,15 @@ const typeClass = computed(() => {
   }
   if (props.platform === 'antigravity') {
     return 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+  }
+  if (props.platform === 'deepseek') {
+    return 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+  }
+  if (props.platform === 'qwen') {
+    return 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+  }
+  if (props.platform === 'glm') {
+    return 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
   }
   return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
 })

@@ -3322,6 +3322,8 @@ export default {
       deleteConfirm: "Are you sure you want to delete '{name}'? This action cannot be undone.",
       // Create/Edit Account Modal
       platform: 'Platform',
+      otherPlatforms: 'Other',
+      cnPlatformApiKeyOnly: 'This platform only supports API Key access. Please enter your API Key below.',
       accountName: 'Account Name',
       enterAccountName: 'Enter account name',
       accountType: 'Account Type',

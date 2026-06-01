@@ -29,6 +29,15 @@ const (
 	PlatformOther       = "other"
 )
 
+// IsOpenAICompatiblePlatform returns true for platforms that use OpenAI-compatible API format.
+func IsOpenAICompatiblePlatform(platform string) bool {
+	switch platform {
+	case PlatformOpenAI, PlatformSora, PlatformDeepSeek, PlatformQwen, PlatformGLM, PlatformOther:
+		return true
+	}
+	return false
+}
+
 // Account type constants
 const (
 	AccountTypeOAuth          = "oauth"           // OAuth类型账号（full scope: profile + inference）

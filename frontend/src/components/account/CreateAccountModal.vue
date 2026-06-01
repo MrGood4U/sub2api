@@ -70,7 +70,62 @@
       <!-- Platform Selection - Segmented Control Style -->
       <div>
         <label class="input-label">{{ t('admin.accounts.platform') }}</label>
-        <div class="mt-2 flex rounded-lg bg-gray-100 p-1 dark:bg-dark-700" data-tour="account-form-platform">
+        <div class="mt-2 flex flex-wrap rounded-lg bg-gray-100 p-1 dark:bg-dark-700" data-tour="account-form-platform">
+          <button
+            type="button"
+            @click="form.platform = 'deepseek'"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              form.platform === 'deepseek'
+                ? 'bg-white text-red-600 shadow-sm dark:bg-dark-600 dark:text-red-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <PlatformIcon platform="deepseek" size="sm" />
+            DeepSeek
+          </button>
+          <button
+            type="button"
+            @click="form.platform = 'qwen'"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              form.platform === 'qwen'
+                ? 'bg-white text-amber-600 shadow-sm dark:bg-dark-600 dark:text-amber-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <PlatformIcon platform="qwen" size="sm" />
+            Qwen
+          </button>
+          <button
+            type="button"
+            @click="form.platform = 'glm'"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              form.platform === 'glm'
+                ? 'bg-white text-indigo-600 shadow-sm dark:bg-dark-600 dark:text-indigo-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <PlatformIcon platform="glm" size="sm" />
+            GLM
+          </button>
+          <button
+            type="button"
+            @click="showOtherPlatforms = !showOtherPlatforms"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              ['anthropic', 'openai', 'gemini', 'antigravity'].includes(form.platform)
+                ? 'bg-white text-gray-700 shadow-sm dark:bg-dark-600 dark:text-gray-300'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <Icon name="more" size="sm" />
+            {{ t('admin.accounts.otherPlatforms') }}
+          </button>
+        </div>
+        <!-- Other Platforms (Anthropic/OpenAI/Gemini/Antigravity) -->
+        <div v-if="showOtherPlatforms || ['anthropic', 'openai', 'gemini', 'antigravity'].includes(form.platform)" class="mt-2 flex rounded-lg bg-gray-50 p-1 dark:bg-dark-800">
           <button
             type="button"
             @click="form.platform = 'anthropic'"
@@ -94,19 +149,7 @@
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
             ]"
           >
-            <svg
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
-              />
-            </svg>
+            <PlatformIcon platform="openai" size="sm" />
             OpenAI
           </button>
           <button
@@ -119,19 +162,7 @@
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
             ]"
           >
-            <svg
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M12 2l1.5 6.5L20 10l-6.5 1.5L12 18l-1.5-6.5L4 10l6.5-1.5L12 2z"
-              />
-            </svg>
+            <PlatformIcon platform="gemini" size="sm" />
             Gemini
           </button>
           <button
@@ -148,6 +179,13 @@
             Antigravity
           </button>
         </div>
+      </div>
+
+      <!-- Account Type Selection (DeepSeek/Qwen/GLM) - API Key only -->
+      <div v-if="form.platform === 'deepseek' || form.platform === 'qwen' || form.platform === 'glm'">
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {{ t('admin.accounts.cnPlatformApiKeyOnly') }}
+        </p>
       </div>
 
       <!-- Account Type Selection (Anthropic) -->
@@ -1021,7 +1059,13 @@
                 ? 'https://api.openai.com'
                 : form.platform === 'gemini'
                   ? 'https://generativelanguage.googleapis.com'
-                  : 'https://api.anthropic.com'
+                  : form.platform === 'deepseek'
+                    ? 'https://api.deepseek.com'
+                    : form.platform === 'qwen'
+                      ? 'https://dashscope.aliyuncs.com/compatible-mode'
+                      : form.platform === 'glm'
+                        ? 'https://open.bigmodel.cn/api/paas'
+                        : 'https://api.anthropic.com'
             "
           />
           <p class="input-hint">{{ baseUrlHint }}</p>
@@ -3233,6 +3277,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
@@ -3440,6 +3485,7 @@ loadQuotaNotifyGlobal()
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const allowOverages = ref(false) // For antigravity accounts: enable AI Credits overages
 const antigravityAccountType = ref<'oauth' | 'upstream'>('oauth') // For antigravity: oauth or upstream
+const showOtherPlatforms = ref(false) // Toggle for Anthropic/OpenAI/Gemini/Antigravity platforms
 const upstreamBaseUrl = ref('') // For upstream type: base URL
 const upstreamApiKey = ref('') // For upstream type: API key
 const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
@@ -3684,7 +3730,7 @@ const tempUnschedPresets = computed(() => [
 const form = reactive({
   name: '',
   notes: '',
-  platform: 'anthropic' as AccountPlatform,
+  platform: 'deepseek' as AccountPlatform,
   type: 'oauth' as AccountType, // Will be 'oauth', 'setup-token', or 'apikey'
   credentials: {} as Record<string, unknown>,
   proxy_id: null as number | null,
@@ -3769,6 +3815,11 @@ watch(
   ([category, method, agType]) => {
     // Antigravity upstream 类型（实际创建为 apikey）
     if (form.platform === 'antigravity' && agType === 'upstream') {
+      form.type = 'apikey'
+      return
+    }
+    // CN platforms (DeepSeek/Qwen/GLM) only support apikey
+    if (form.platform === 'deepseek' || form.platform === 'qwen' || form.platform === 'glm') {
       form.type = 'apikey'
       return
     }

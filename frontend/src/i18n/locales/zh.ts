@@ -3470,6 +3470,8 @@ export default {
       failedToRefresh: '刷新 Cookie 失败',
       // Create/Edit Account Modal
       platform: '平台',
+      otherPlatforms: '其他平台',
+      cnPlatformApiKeyOnly: '此平台仅支持 API Key 方式接入，请在下方填写您的 API Key。',
       accountName: '账号名称',
       enterAccountName: '请输入账号名称',
       accountType: '账号类型',

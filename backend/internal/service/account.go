@@ -1111,6 +1111,22 @@ func (a *Account) IsOpenAI() bool {
 	return IsOpenAICompatiblePlatform(a.Platform) && resolveGatewayPlatformForAccount(a) == PlatformOpenAI
 }
 
+func (a *Account) IsDeepSeek() bool {
+	return a.Platform == PlatformDeepSeek
+}
+
+func (a *Account) IsQwen() bool {
+	return a.Platform == PlatformQwen
+}
+
+func (a *Account) IsGLM() bool {
+	return a.Platform == PlatformGLM
+}
+
+func (a *Account) IsOpenAICompatible() bool {
+	return domain.IsOpenAICompatiblePlatform(a.Platform)
+}
+
 func (a *Account) IsAnthropic() bool {
 	return resolveGatewayPlatformForAccount(a) == PlatformAnthropic
 }
@@ -1124,7 +1140,7 @@ func (a *Account) IsOpenAIApiKey() bool {
 }
 
 func (a *Account) GetOpenAIBaseURL() string {
-	if !a.IsOpenAI() {
+	if !a.IsOpenAICompatible() {
 		return ""
 	}
 	if a.Type == AccountTypeAPIKey {
@@ -1133,7 +1149,16 @@ func (a *Account) GetOpenAIBaseURL() string {
 			return baseURL
 		}
 	}
-	return "https://api.openai.com"
+	switch a.Platform {
+	case PlatformDeepSeek:
+		return "https://api.deepseek.com"
+	case PlatformQwen:
+		return "https://dashscope.aliyuncs.com/compatible-mode"
+	case PlatformGLM:
+		return "https://open.bigmodel.cn/api/paas"
+	default:
+		return "https://api.openai.com"
+	}
 }
 
 func (a *Account) SupportsOpenAIResponsesAPI() bool {

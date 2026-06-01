@@ -293,76 +293,75 @@
         </div>
 
         <div class="mb-16 flex flex-wrap items-center justify-center gap-4">
-          <!-- Claude - Supported -->
+          <!-- DeepSeek - Supported -->
           <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
+            class="flex items-center gap-2 rounded-xl border border-red-200 bg-white/60 px-5 py-3 ring-1 ring-red-500/20 backdrop-blur-sm dark:border-red-800 dark:bg-dark-800/60"
           >
             <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-orange-500"
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600"
             >
-              <span class="text-xs font-bold text-white">C</span>
+              <span class="text-xs font-bold text-white">D</span>
             </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.claude') }}</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">DeepSeek</span>
             <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+              class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400"
               >{{ t('home.providers.supported') }}</span
             >
           </div>
-          <!-- GPT - Supported -->
+          <!-- Qwen - Supported -->
           <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
+            class="flex items-center gap-2 rounded-xl border border-amber-200 bg-white/60 px-5 py-3 ring-1 ring-amber-500/20 backdrop-blur-sm dark:border-amber-800 dark:bg-dark-800/60"
           >
             <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600"
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600"
+            >
+              <span class="text-xs font-bold text-white">Q</span>
+            </div>
+            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">Qwen</span>
+            <span
+              class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+              >{{ t('home.providers.supported') }}</span
+            >
+          </div>
+          <!-- GLM - Supported -->
+          <div
+            class="flex items-center gap-2 rounded-xl border border-indigo-200 bg-white/60 px-5 py-3 ring-1 ring-indigo-500/20 backdrop-blur-sm dark:border-indigo-800 dark:bg-dark-800/60"
+          >
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600"
             >
               <span class="text-xs font-bold text-white">G</span>
             </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">GPT</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">GLM</span>
             <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+              class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
               >{{ t('home.providers.supported') }}</span
             >
           </div>
-          <!-- Gemini - Supported -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600"
-            >
-              <span class="text-xs font-bold text-white">G</span>
+
+          <!-- Divider -->
+          <div class="hidden sm:block h-10 w-px bg-gray-200 dark:bg-dark-600"></div>
+
+          <!-- Coming Soon group: Claude / GPT / Gemini -->
+          <div class="flex items-center gap-3 rounded-xl border border-gray-200/50 bg-white/40 px-4 py-2.5 backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/40">
+            <div class="flex items-center gap-2 opacity-60">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-orange-500">
+                <span class="text-[10px] font-bold text-white">C</span>
+              </div>
+              <span class="text-xs font-medium text-gray-500 dark:text-dark-400">Claude</span>
             </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.gemini') }}</span>
-            <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
-              >{{ t('home.providers.supported') }}</span
-            >
-          </div>
-          <!-- Antigravity - Supported -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-pink-600"
-            >
-              <span class="text-xs font-bold text-white">A</span>
+            <div class="flex items-center gap-2 opacity-60">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600">
+                <span class="text-[10px] font-bold text-white">G</span>
+              </div>
+              <span class="text-xs font-medium text-gray-500 dark:text-dark-400">GPT</span>
             </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.antigravity') }}</span>
-            <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
-              >{{ t('home.providers.supported') }}</span
-            >
-          </div>
-          <!-- More - Coming Soon -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-gray-200/50 bg-white/40 px-5 py-3 opacity-60 backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/40"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gray-500 to-gray-600"
-            >
-              <span class="text-xs font-bold text-white">+</span>
+            <div class="flex items-center gap-2 opacity-60">
+              <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600">
+                <span class="text-[10px] font-bold text-white">G</span>
+              </div>
+              <span class="text-xs font-medium text-gray-500 dark:text-dark-400">Gemini</span>
             </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.more') }}</span>
             <span
               class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-dark-700 dark:text-dark-400"
               >{{ t('home.providers.soon') }}</span
