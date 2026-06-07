@@ -116,12 +116,10 @@ func TestGetModelPricing_OpenAICompactAliasUsesStaticFallback(t *testing.T) {
 func TestDefaultPricingIncludesCodexAutoReview(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "resources", "model-pricing", "model_prices_and_context_window.json"))
 	require.NoError(t, err)
-
 	svc := &PricingService{}
 	pricingData, err := svc.parsePricingData(data)
 	require.NoError(t, err)
 	svc.pricingData = pricingData
-
 	got := svc.GetModelPricing("codex-auto-review")
 	require.NotNil(t, got)
 	require.InDelta(t, 5e-6, got.InputCostPerToken, 1e-12)
@@ -172,6 +170,28 @@ func TestGetModelPricing_ImageModelDoesNotFallbackToTextModel(t *testing.T) {
 
 	got := svc.GetModelPricing("gpt-image-3")
 	require.Same(t, imagePricing, got)
+}
+
+func TestGetModelPricing_DeepSeekV4FallbackUsesConvertedCNYPricing(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "resources", "model-pricing", "model_prices_and_context_window.json"))
+	require.NoError(t, err)
+
+	svc := &PricingService{}
+	pricingData, err := svc.parsePricingData(data)
+	require.NoError(t, err)
+	svc.pricingData = pricingData
+
+	flash := svc.GetModelPricing("deepseek-v4-flash")
+	require.NotNil(t, flash)
+	require.InDelta(t, 1.0*deepSeekV4CNYToUSDPerToken, flash.InputCostPerToken, 1e-12)
+	require.InDelta(t, 2.0*deepSeekV4CNYToUSDPerToken, flash.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 0.02*deepSeekV4CNYToUSDPerToken, flash.CacheReadInputTokenCost, 1e-12)
+
+	pro := svc.GetModelPricing("deepseek-v4-pro")
+	require.NotNil(t, pro)
+	require.InDelta(t, 3.0*deepSeekV4CNYToUSDPerToken, pro.InputCostPerToken, 1e-12)
+	require.InDelta(t, 6.0*deepSeekV4CNYToUSDPerToken, pro.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 0.025*deepSeekV4CNYToUSDPerToken, pro.CacheReadInputTokenCost, 1e-12)
 }
 
 func TestParsePricingData_PreservesPriorityAndServiceTierFields(t *testing.T) {

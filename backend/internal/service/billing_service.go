@@ -283,6 +283,20 @@ func (s *BillingService) initFallbackPricing() {
 		CacheReadPricePerToken: 2e-8,
 		SupportsCacheBreakdown: false,
 	}
+	// DeepSeek V4 Flash（人民币价格按 2026-06-07 汇率换算美元）
+	s.fallbackPrices["deepseek-v4-flash"] = &ModelPricing{
+		InputPricePerToken:     deepSeekV4FlashFallbackPricing.InputCostPerToken,
+		OutputPricePerToken:    deepSeekV4FlashFallbackPricing.OutputCostPerToken,
+		CacheReadPricePerToken: deepSeekV4FlashFallbackPricing.CacheReadInputTokenCost,
+		SupportsCacheBreakdown: false,
+	}
+	// DeepSeek V4 Pro（人民币价格按 2026-06-07 汇率换算美元）
+	s.fallbackPrices["deepseek-v4-pro"] = &ModelPricing{
+		InputPricePerToken:     deepSeekV4ProFallbackPricing.InputCostPerToken,
+		OutputPricePerToken:    deepSeekV4ProFallbackPricing.OutputCostPerToken,
+		CacheReadPricePerToken: deepSeekV4ProFallbackPricing.CacheReadInputTokenCost,
+		SupportsCacheBreakdown: false,
+	}
 	// OpenAI GPT-5.2（本地兜底）
 	s.fallbackPrices["gpt-5.2"] = &ModelPricing{
 		InputPricePerToken:             1.75e-6,

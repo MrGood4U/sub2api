@@ -48,6 +48,21 @@ var (
 		OutputCostPerToken:      1.25e-06,
 		CacheReadInputTokenCost: 2e-08,
 		LiteLLMProvider:         "openai",
+	deepSeekV4USDCNYExchangeRate   = 6.7657 // 2026-06-07 USD/CNY
+	deepSeekV4CNYToUSDPerToken     = 1e-6 / deepSeekV4USDCNYExchangeRate
+	deepSeekV4FlashFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:       1.0 * deepSeekV4CNYToUSDPerToken,
+		OutputCostPerToken:      2.0 * deepSeekV4CNYToUSDPerToken,
+		CacheReadInputTokenCost: 0.02 * deepSeekV4CNYToUSDPerToken,
+		LiteLLMProvider:         "deepseek",
+		Mode:                    "chat",
+		SupportsPromptCaching:   true,
+	}
+	deepSeekV4ProFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:       3.0 * deepSeekV4CNYToUSDPerToken,
+		OutputCostPerToken:      6.0 * deepSeekV4CNYToUSDPerToken,
+		CacheReadInputTokenCost: 0.025 * deepSeekV4CNYToUSDPerToken,
+		LiteLLMProvider:         "deepseek",
 		Mode:                    "chat",
 		SupportsPromptCaching:   true,
 	}

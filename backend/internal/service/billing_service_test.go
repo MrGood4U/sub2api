@@ -166,6 +166,24 @@ func TestGetModelPricing_OpenAICompactAliasesFallback(t *testing.T) {
 	}
 }
 
+func TestBillingGetModelPricing_DeepSeekV4FallbackUsesConvertedCNYPricing(t *testing.T) {
+	svc := newTestBillingService()
+
+	flash, err := svc.GetModelPricing("deepseek-v4-flash")
+	require.NoError(t, err)
+	require.NotNil(t, flash)
+	require.InDelta(t, deepSeekV4FlashFallbackPricing.InputCostPerToken, flash.InputPricePerToken, 1e-12)
+	require.InDelta(t, deepSeekV4FlashFallbackPricing.OutputCostPerToken, flash.OutputPricePerToken, 1e-12)
+	require.InDelta(t, deepSeekV4FlashFallbackPricing.CacheReadInputTokenCost, flash.CacheReadPricePerToken, 1e-12)
+
+	pro, err := svc.GetModelPricing("deepseek-v4-pro")
+	require.NoError(t, err)
+	require.NotNil(t, pro)
+	require.InDelta(t, deepSeekV4ProFallbackPricing.InputCostPerToken, pro.InputPricePerToken, 1e-12)
+	require.InDelta(t, deepSeekV4ProFallbackPricing.OutputCostPerToken, pro.OutputPricePerToken, 1e-12)
+	require.InDelta(t, deepSeekV4ProFallbackPricing.CacheReadInputTokenCost, pro.CacheReadPricePerToken, 1e-12)
+}
+
 func TestGetModelPricing_OpenAIGPT54MiniFallback(t *testing.T) {
 	svc := newTestBillingService()
 

@@ -3042,7 +3042,7 @@ import { useI18n } from "vue-i18n";
 import { useAppStore } from "@/stores/app";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { adminAPI } from "@/api/admin";
-import type { AdminGroup, GroupPlatform, SubscriptionType } from "@/types";
+import type { Account, AdminGroup, GroupPlatform, SubscriptionType } from "@/types";
 import type { Column } from "@/components/common/types";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
@@ -3432,19 +3432,69 @@ const clearAllAccountSearchState = () => {
   showAccountDropdown.value = {};
 };
 
+const isDeepSeekAnthropicBaseURL = (baseURL?: string | null) =>
+  (baseURL || "").trim().toLowerCase().replace(/\/+$/, "").endsWith("/anthropic");
+
+const resolveCompatibleGroupPlatform = (
+  platform?: string | null,
+  baseURL?: string | null,
+): GroupPlatform | null => {
+  if (!platform) return null;
+  if (platform === "deepseek") {
+    return isDeepSeekAnthropicBaseURL(baseURL) ? "anthropic" : "openai";
+  }
+  if (
+    platform === "openai" ||
+    platform === "qwen" ||
+    platform === "glm" ||
+    platform === "other"
+  ) {
+    return "openai";
+  }
+  if (
+    platform === "anthropic" ||
+    platform === "gemini" ||
+    platform === "antigravity" ||
+    platform === "sora"
+  ) {
+    return platform;
+  }
+  return null;
+};
+
+const getRoutingSearchTargetPlatform = (key: string): GroupPlatform | '' => {
+  if (key.startsWith('create-')) {
+    return createForm.platform
+  }
+  if (key.startsWith('edit-')) {
+    return editForm.platform
+  }
+  return ''
+}
+
+const isAccountCompatibleWithGroupPlatform = (account: Account, platform: GroupPlatform | '') => {
+  if (!platform) {
+    return true
+  }
+  const baseURL = typeof account.credentials?.base_url === 'string' ? account.credentials.base_url : ''
+  return resolveCompatibleGroupPlatform(account.platform, baseURL) === platform
+}
+
 const accountSearchRunner = useKeyedDebouncedSearch<SimpleAccount[]>({
   delay: 300,
-  search: async (keyword, { signal }) => {
+  search: async (keyword, { key, signal }) => {
     const res = await adminAPI.accounts.list(
       1,
       20,
       {
         search: keyword,
-        platform: "anthropic",
       },
       { signal },
     );
-    return res.items.map((account) => ({ id: account.id, name: account.name }));
+    const targetPlatform = getRoutingSearchTargetPlatform(key)
+    return res.items
+      .filter((account) => isAccountCompatibleWithGroupPlatform(account, targetPlatform))
+      .map((account) => ({ id: account.id, name: account.name }))
   },
   onSuccess: (key, result) => {
     accountSearchResults.value[key] = result;
