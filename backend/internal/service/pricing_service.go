@@ -48,6 +48,9 @@ var (
 		OutputCostPerToken:      1.25e-06,
 		CacheReadInputTokenCost: 2e-08,
 		LiteLLMProvider:         "openai",
+		Mode:                    "chat",
+		SupportsPromptCaching:   true,
+	}
 	deepSeekV4USDCNYExchangeRate   = 6.7657 // 2026-06-07 USD/CNY
 	deepSeekV4CNYToUSDPerToken     = 1e-6 / deepSeekV4USDCNYExchangeRate
 	deepSeekV4FlashFallbackPricing = &LiteLLMModelPricing{
@@ -584,11 +587,32 @@ func (s *PricingService) GetModelPricing(modelName string) *LiteLLMModelPricing 
 		return pricing
 	}
 
-	// 5. OpenAI 模型回退策略
+	// 5. DeepSeek 新模型兜底
+	if pricing := s.matchDeepSeekModel(lookupCandidates[0]); pricing != nil {
+		return pricing
+	}
+
+	// 6. OpenAI 模型回退策略
 	if strings.HasPrefix(lookupCandidates[0], "gpt-") {
 		return s.matchOpenAIModel(lookupCandidates[0])
 	}
 
+	return nil
+}
+
+// matchDeepSeekModel DeepSeek 模型回退策略
+// 当前用于兼容价格源尚未显式收录的 v4 系列。
+func (s *PricingService) matchDeepSeekModel(model string) *LiteLLMModelPricing {
+	switch {
+	case strings.HasPrefix(model, "deepseek-v4-flash"):
+		logger.With(zap.String("component", "service.pricing")).
+			Info(fmt.Sprintf("[Pricing] DeepSeek fallback matched %s -> %s", model, "deepseek-v4-flash"))
+		return deepSeekV4FlashFallbackPricing
+	case strings.HasPrefix(model, "deepseek-v4-pro"):
+		logger.With(zap.String("component", "service.pricing")).
+			Info(fmt.Sprintf("[Pricing] DeepSeek fallback matched %s -> %s", model, "deepseek-v4-pro"))
+		return deepSeekV4ProFallbackPricing
+	}
 	return nil
 }
 

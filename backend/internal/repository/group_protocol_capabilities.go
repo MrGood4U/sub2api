@@ -9,7 +9,7 @@ import (
 )
 
 func applyGroupProtocolCapabilities(ctx context.Context, sqlq sqlExecutor, groups []*service.Group) error {
-	if len(groups) == 0 {
+	if sqlq == nil || len(groups) == 0 {
 		return nil
 	}
 
