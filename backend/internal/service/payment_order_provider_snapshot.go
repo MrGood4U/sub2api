@@ -18,6 +18,8 @@ type paymentOrderProviderSnapshot struct {
 	MerchantAppID      string
 	MerchantID         string
 	Currency           string
+	PayCurrency        string
+	FiatCurrency       string
 }
 
 func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSnapshot {
@@ -33,6 +35,8 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		MerchantAppID:      psSnapshotStringValue(order.ProviderSnapshot["merchant_app_id"]),
 		MerchantID:         psSnapshotStringValue(order.ProviderSnapshot["merchant_id"]),
 		Currency:           psSnapshotStringValue(order.ProviderSnapshot["currency"]),
+		PayCurrency:        psSnapshotStringValue(order.ProviderSnapshot["pay_currency"]),
+		FiatCurrency:       psSnapshotStringValue(order.ProviderSnapshot["fiat_currency"]),
 	}
 	if snapshot.SchemaVersion == 0 &&
 		snapshot.ProviderInstanceID == "" &&
@@ -40,7 +44,9 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		snapshot.PaymentMode == "" &&
 		snapshot.MerchantAppID == "" &&
 		snapshot.MerchantID == "" &&
-		snapshot.Currency == "" {
+		snapshot.Currency == "" &&
+		snapshot.PayCurrency == "" &&
+		snapshot.FiatCurrency == "" {
 		return nil
 	}
 	return snapshot
@@ -219,6 +225,16 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 		}
 		if actual := strings.TrimSpace(metadata["status"]); actual != "" && !strings.EqualFold(actual, "SUCCEEDED") {
 			return fmt.Errorf("airwallex status mismatch: expected SUCCEEDED, got %s", actual)
+		}
+	case payment.TypeNowPayments:
+		if expected := strings.TrimSpace(snapshot.PayCurrency); expected != "" {
+			actual := strings.TrimSpace(metadata["pay_currency"])
+			if actual == "" {
+				return fmt.Errorf("nowpayments notification missing pay_currency")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("nowpayments pay_currency mismatch: expected %s, got %s", expected, actual)
+			}
 		}
 	}
 

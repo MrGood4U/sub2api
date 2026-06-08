@@ -18,6 +18,7 @@ const (
 	TypeLink         PaymentType = "link"
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
+	TypeNowPayments  PaymentType = "nowpayments"
 )
 
 // Order status constants shared across payment and service layers.
@@ -85,6 +86,8 @@ func GetBasePaymentType(t string) string {
 		return TypeEasyPay
 	case t == TypeAirwallex:
 		return TypeAirwallex
+	case t == TypeNowPayments:
+		return TypeNowPayments
 	case t == TypeStripe || t == TypeCard || t == TypeLink:
 		return TypeStripe
 	case len(t) >= len(TypeAlipay) && t[:len(TypeAlipay)] == TypeAlipay:
@@ -108,6 +111,7 @@ type CreatePaymentRequest struct {
 	ClientIP           string // Payer's IP address
 	IsMobile           bool   // Whether the request comes from a mobile device
 	InstanceSubMethods string // Comma-separated sub-methods from instance supported_types (for Stripe)
+	PayCurrency        string // User-selected crypto network (NOWPayments), empty = use provider default
 }
 
 // CreatePaymentResultType describes the shape of the create-payment result.
@@ -141,17 +145,20 @@ type WechatJSAPIPayload struct {
 
 // CreatePaymentResponse is returned after successfully initiating a payment.
 type CreatePaymentResponse struct {
-	TradeNo      string                  // Third-party transaction ID
-	PayURL       string                  // H5 payment URL (alipay/wxpay)
-	QRCode       string                  // QR code content for scanning
-	ClientSecret string                  // Stripe PaymentIntent 客户端密钥
-	IntentID     string                  // 前端 SDK 需要的服务商支付意图 ID
-	Currency     string                  // 服务商支付币种
-	CountryCode  string                  // 服务商收银台国家/地区代码
-	PaymentEnv   string                  // 服务商前端环境标识
-	ResultType   CreatePaymentResultType // Typed result contract for frontend flows
-	OAuth        *WechatOAuthInfo        // WeChat OAuth bootstrap payload when required
-	JSAPI        *WechatJSAPIPayload     // WeChat JSAPI invocation payload when ready
+	TradeNo        string                  // Third-party transaction ID
+	PayURL         string                  // H5 payment URL (alipay/wxpay)
+	QRCode         string                  // QR code content for scanning
+	WalletAddress  string                  // Crypto wallet address for manual transfer (e.g. NOWPayments)
+	CryptoAmount   string                  // Crypto amount the user needs to send
+	CryptoCurrency string                  // Crypto currency/network (e.g. "usdttrc20")
+	ClientSecret   string                  // Stripe PaymentIntent 客户端密钥
+	IntentID       string                  // 前端 SDK 需要的服务商支付意图 ID
+	Currency       string                  // 服务商支付币种
+	CountryCode    string                  // 服务商收银台国家/地区代码
+	PaymentEnv     string                  // 服务商前端环境标识
+	ResultType     CreatePaymentResultType // Typed result contract for frontend flows
+	OAuth          *WechatOAuthInfo        // WeChat OAuth bootstrap payload when required
+	JSAPI          *WechatJSAPIPayload     // WeChat JSAPI invocation payload when ready
 }
 
 // QueryOrderResponse describes the payment status from the upstream provider.

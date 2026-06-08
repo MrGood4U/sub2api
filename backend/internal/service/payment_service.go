@@ -83,6 +83,7 @@ type CreateOrderRequest struct {
 	PaymentSource   string
 	OrderType       string
 	PlanID          int64
+	PayCurrency     string
 	Locale          string
 }
 
@@ -96,8 +97,11 @@ type CreateOrderResponse struct {
 	PaymentType  string                          `json:"payment_type"`
 	OutTradeNo   string                          `json:"out_trade_no,omitempty"`
 	PayURL       string                          `json:"pay_url,omitempty"`
-	QRCode       string                          `json:"qr_code,omitempty"`
-	ClientSecret string                          `json:"client_secret,omitempty"`
+	QRCode        string                          `json:"qr_code,omitempty"`
+	WalletAddress string                          `json:"wallet_address,omitempty"`
+	CryptoAmount  string                          `json:"crypto_amount,omitempty"`
+	CryptoCurrency string                         `json:"crypto_currency,omitempty"`
+	ClientSecret  string                          `json:"client_secret,omitempty"`
 	IntentID     string                          `json:"intent_id,omitempty"`
 	Currency     string                          `json:"currency,omitempty"`
 	CountryCode  string                          `json:"country_code,omitempty"`

@@ -112,9 +112,10 @@ type MethodLimits struct {
 	PaymentType string  `json:"payment_type"`
 	Currency    string  `json:"currency"`
 	FeeRate     float64 `json:"fee_rate"`
-	DailyLimit  float64 `json:"daily_limit"`
-	SingleMin   float64 `json:"single_min"`
-	SingleMax   float64 `json:"single_max"`
+	DailyLimit  float64  `json:"daily_limit"`
+	SingleMin   float64  `json:"single_min"`
+	SingleMax   float64  `json:"single_max"`
+	Networks    []string `json:"networks,omitempty"`
 }
 
 // MethodLimitsResponse is the full response for the user-facing /limits API.

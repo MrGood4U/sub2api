@@ -18,7 +18,7 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex'
+export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'nowpayments'
 
 export type OrderType = 'balance' | 'subscription'
 
@@ -48,6 +48,7 @@ export interface MethodLimit {
   single_max: number
   fee_rate: number
   available: boolean
+  networks?: string[]
 }
 
 /** Response from /payment/limits API */
@@ -163,6 +164,7 @@ export interface CreateOrderRequest {
   openid?: string
   wechat_resume_token?: string
   is_mobile?: boolean
+  pay_currency?: string
 }
 
 export type CreateOrderResultType = 'order_created' | 'oauth_required' | 'jsapi_ready'
@@ -190,6 +192,9 @@ export interface CreateOrderResult {
   amount: number
   pay_url?: string
   qr_code?: string
+  wallet_address?: string
+  crypto_amount?: string
+  crypto_currency?: string
   client_secret?: string
   intent_id?: string
   currency?: string

@@ -150,11 +150,27 @@
               </button>
             </div>
             <Select
-              v-else-if="field.options?.length"
+              v-else-if="!field.multi && field.options?.length"
               v-model="config[field.key]"
               :options="field.options"
               :searchable="field.options.length > 5"
             />
+            <!-- Multi-select checkbox group -->
+            <div v-else-if="field.multi && field.options?.length" class="space-y-2">
+              <label
+                v-for="opt in field.options"
+                :key="opt.value"
+                class="flex items-center gap-2 cursor-pointer select-none"
+              >
+                <input
+                  type="checkbox"
+                  :checked="multiSelected(field.key).includes(opt.value)"
+                  class="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                  @change="toggleMultiOption(field.key, opt.value)"
+                />
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ opt.label }}</span>
+              </label>
+            </div>
             <input
               v-else
               type="text"
@@ -508,6 +524,23 @@ function toggleType(type: string) {
   } else {
     form.supported_types = [...form.supported_types, type]
   }
+}
+
+function multiSelected(key: string): string[] {
+  const raw = (config[key] || '').trim()
+  if (!raw) return []
+  return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+}
+
+function toggleMultiOption(key: string, value: string) {
+  const selected = multiSelected(key)
+  const idx = selected.indexOf(value.trim().toLowerCase())
+  if (idx >= 0) {
+    selected.splice(idx, 1)
+  } else {
+    selected.push(value.trim().toLowerCase())
+  }
+  config[key] = selected.join(',')
 }
 
 function onKeyChange() {

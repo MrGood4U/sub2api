@@ -20,6 +20,9 @@
             :expires-at="paymentState.expiresAt"
             :payment-type="paymentState.paymentType"
             :pay-url="paymentState.payUrl"
+            :wallet-address="paymentState.walletAddress"
+            :crypto-amount="paymentState.cryptoAmount"
+            :crypto-currency="paymentState.cryptoCurrency"
             :order-type="paymentState.orderType"
             :currency="paymentState.currency || selectedCurrency"
             @done="onPaymentDone"
@@ -54,8 +57,30 @@
               <PaymentMethodSelector
                 :methods="methodOptions"
                 :selected="selectedMethod"
-                @select="selectedMethod = $event"
+                @select="onMethodSelect($event)"
               />
+            </div>
+            <!-- Network selector for NOWPayments -->
+            <div v-if="showNetworkSelector" class="card p-6">
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('payment.network') }}
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="network in availableNetworks"
+                  :key="network"
+                  type="button"
+                  :class="[
+                    'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
+                    selectedNetwork === network
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300',
+                  ]"
+                  @click="selectedNetwork = network"
+                >
+                  {{ networkLabel(network) }}
+                </button>
+              </div>
             </div>
             <div v-if="validAmount > 0" class="card p-6">
               <div class="space-y-2 text-sm">
@@ -143,8 +168,30 @@
                 <PaymentMethodSelector
                   :methods="subMethodOptions"
                   :selected="selectedMethod"
-                  @select="selectedMethod = $event"
+                  @select="onMethodSelect($event)"
                 />
+              </div>
+              <!-- Network selector for NOWPayments -->
+              <div v-if="showNetworkSelector" class="card p-6">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('payment.network') }}
+                </label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="network in availableNetworks"
+                    :key="network"
+                    type="button"
+                    :class="[
+                      'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
+                      selectedNetwork === network
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300',
+                    ]"
+                    @click="selectedNetwork = network"
+                  >
+                    {{ networkLabel(network) }}
+                  </button>
+                </div>
               </div>
               <div v-if="feeRate > 0 && selectedPlan.price > 0" class="card p-6">
                 <div class="space-y-2 text-sm">
@@ -304,6 +351,7 @@ const errorHintMessage = ref('')
 const activeTab = ref<'recharge' | 'subscription'>('recharge')
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
+const selectedNetwork = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
 
@@ -343,6 +391,9 @@ function emptyPaymentState(): PaymentRecoverySnapshot {
     orderType: '',
     paymentMode: '',
     resumeToken: '',
+    walletAddress: '',
+    cryptoAmount: '',
+    cryptoCurrency: '',
     createdAt: 0,
   }
 }
@@ -540,6 +591,21 @@ const localeCode = computed(() => {
   return undefined
 })
 
+const availableNetworks = computed(() => selectedLimit.value?.networks || [])
+const showNetworkSelector = computed(() => selectedMethod.value === 'nowpayments' && availableNetworks.value.length > 1)
+
+const NETWORK_LABELS: Record<string, string> = {
+  usdttrc20: 'USDT (TRC-20 / TRON)',
+  usdterc20: 'USDT (ERC-20 / Ethereum)',
+  usdtbsc: 'USDT (BEP-20 / BSC)',
+  usdc: 'USDC (Ethereum)',
+  usdcmatic: 'USDC (Polygon/MATIC)',
+}
+
+function networkLabel(value: string): string {
+  return NETWORK_LABELS[value] || value.toUpperCase()
+}
+
 function formatSelectedPaymentAmount(value: number): string {
   return formatPaymentAmount(value, selectedCurrency.value, localeCode.value)
 }
@@ -586,6 +652,7 @@ const canSubmit = computed(() =>
   validAmount.value > 0
     && amountFitsMethod(validAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
+    && (!showNetworkSelector.value || selectedNetwork.value !== '')
 )
 
 // Subscription-specific: method options based on plan price
@@ -617,6 +684,7 @@ const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
     && amountFitsMethod(selectedPlan.value.price, selectedMethod.value)
     && selectedLimit.value?.available !== false
+    && (!showNetworkSelector.value || selectedNetwork.value !== '')
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
@@ -634,6 +702,7 @@ const paymentButtonClass = computed(() => {
   if (m.includes('wxpay')) return 'btn-wxpay'
   if (m === 'stripe') return 'btn-stripe'
   if (m === 'airwallex') return 'btn-airwallex'
+  if (m === 'nowpayments') return 'btn-nowpayments'
   return 'btn-primary'
 })
 
@@ -674,6 +743,13 @@ function closeRenewalModal() {
   renewGroupId.value = null
 }
 
+function onMethodSelect(method: string) {
+  selectedMethod.value = method
+  if (method !== 'nowpayments') {
+    selectedNetwork.value = ''
+  }
+}
+
 async function handleSubmitRecharge() {
   if (!canSubmit.value || submitting.value) return
   await createOrder(validAmount.value, 'balance')
@@ -699,6 +775,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       isMobile: isMobileDevice(),
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && normalizeVisibleMethod(requestType) === 'alipay'),
+      payCurrency: selectedNetwork.value || undefined,
     })
     if (options.openid) {
       payload.openid = options.openid
@@ -780,6 +857,10 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       return
     }
     if (decision.kind === 'airwallex_route') {
+      window.location.href = decision.paymentState.payUrl
+      return
+    }
+    if (decision.kind === 'nowpayments_route') {
       window.location.href = decision.paymentState.payUrl
       return
     }
@@ -924,6 +1005,7 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
       origin: typeof window !== 'undefined' ? window.location.origin : '',
       isMobile: false,
       isWechatBrowser: false,
+      payCurrency: selectedNetwork.value || undefined,
     })
     const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
     const stripeMethod = visibleMethod === 'wxpay' ? 'wechat_pay' : 'alipay'
@@ -1046,6 +1128,9 @@ onMounted(async () => {
         const restoredMethod = normalizeVisibleMethod(restored.paymentType)
         if (restoredMethod) {
           selectedMethod.value = restoredMethod
+        }
+        if (restored.cryptoCurrency) {
+          selectedNetwork.value = restored.cryptoCurrency
         }
       } else {
         removeRecoverySnapshot()

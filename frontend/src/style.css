@@ -142,6 +142,13 @@
     @apply dark:shadow-[#2BB741]/20;
   }
 
+  .btn-nowpayments {
+    @apply bg-[#00D4AA] text-white shadow-md shadow-[#00D4AA]/25;
+    @apply hover:bg-[#00bf98] hover:shadow-lg hover:shadow-[#00D4AA]/30;
+    @apply active:bg-[#00a885];
+    @apply dark:shadow-[#00D4AA]/20;
+  }
+
   .btn-sm {
     @apply rounded-lg px-3 py-1.5 text-xs;
   }

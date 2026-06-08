@@ -99,6 +99,31 @@
       </button>
     </template>
 
+    <!-- Crypto Wallet Address Mode -->
+    <template v-else-if="walletAddress">
+      <div class="card p-6">
+        <div class="flex flex-col items-center space-y-4">
+          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('payment.qr.walletAddressTitle') }}</p>
+          <div class="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-800">
+            <p class="break-all font-mono text-sm text-gray-900 dark:text-white select-all">{{ walletAddress }}</p>
+          </div>
+          <div v-if="cryptoCurrency" class="flex items-center space-x-2">
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.transferAmount') }}</span>
+            <span class="text-lg font-bold text-gray-900 dark:text-white">{{ cryptoAmount }} {{ cryptoCurrency.toUpperCase() }}</span>
+          </div>
+          <p class="text-center text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.walletAddressHint') }}</p>
+        </div>
+      </div>
+      <div class="card p-4 text-center">
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</p>
+        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
+        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
+      </div>
+      <button class="btn btn-secondary w-full" :disabled="cancelling" @click="handleCancel">
+        {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
+      </button>
+    </template>
+
     <!-- Waiting for Popup/Redirect Mode -->
     <template v-else>
       <div class="card p-6">
@@ -142,6 +167,9 @@ const props = defineProps<{
   expiresAt: string
   paymentType: string
   payUrl?: string
+  walletAddress?: string
+  cryptoAmount?: string
+  cryptoCurrency?: string
   orderType?: string
   currency?: string
 }>()

@@ -303,6 +303,15 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		}
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
+	if providerKey == payment.TypeNowPayments {
+		payCurrency := strings.TrimSpace(req.PayCurrency)
+		if payCurrency == "" {
+			payCurrency = strings.TrimSpace(sel.Config["payCurrency"])
+		}
+		snapshot["pay_currency"] = payCurrency
+		snapshot["fiat_currency"] = strings.TrimSpace(sel.Config["fiatCurrency"])
+		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
+	}
 
 	if len(snapshot) == 1 {
 		return nil
@@ -443,6 +452,7 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		ClientIP:    req.ClientIP,
 		IsMobile:    req.IsMobile,
 		ReturnURL:   providerReturnURL,
+		PayCurrency: req.PayCurrency,
 	}, sel, outTradeNo, payAmountStr, subject)
 	pr, err := prov.CreatePayment(ctx, providerReq)
 	if err != nil {
@@ -456,6 +466,7 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		SetNillablePaymentTradeNo(psNilIfEmpty(pr.TradeNo)).
 		SetNillablePayURL(psNilIfEmpty(pr.PayURL)).
 		SetNillableQrCode(psNilIfEmpty(pr.QRCode)).
+		SetNillableWalletAddress(psNilIfEmpty(pr.WalletAddress)).
 		SetNillableProviderInstanceID(psNilIfEmpty(sel.InstanceID)).
 		SetNillableProviderKey(psNilIfEmpty(sel.ProviderKey)).
 		Save(ctx)
@@ -490,6 +501,7 @@ func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.Inst
 		ClientIP:           req.ClientIP,
 		IsMobile:           req.IsMobile,
 		InstanceSubMethods: selectedInstanceSupportedTypes(sel),
+		PayCurrency:        req.PayCurrency,
 	}
 }
 
@@ -687,8 +699,11 @@ func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest,
 		PaymentType:  req.PaymentType,
 		OutTradeNo:   order.OutTradeNo,
 		PayURL:       pr.PayURL,
-		QRCode:       pr.QRCode,
-		ClientSecret: pr.ClientSecret,
+		QRCode:        pr.QRCode,
+		WalletAddress: pr.WalletAddress,
+		CryptoAmount:  pr.CryptoAmount,
+		CryptoCurrency: pr.CryptoCurrency,
+		ClientSecret:  pr.ClientSecret,
 		IntentID:     pr.IntentID,
 		Currency:     pr.Currency,
 		CountryCode:  pr.CountryCode,

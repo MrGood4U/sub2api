@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -32,6 +33,9 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 		}
 		ml := pcAggregateMethodLimits(pt, insts)
 		ml.Currency = currency
+		if pt == payment.TypeNowPayments {
+			ml.Networks = s.pcAggregateNOWPaymentsNetworks(insts)
+		}
 		resp.Methods[ml.PaymentType] = ml
 	}
 	resp.GlobalMin, resp.GlobalMax = pcComputeGlobalRange(resp.Methods)
@@ -94,6 +98,9 @@ func (s *PaymentConfigService) GetMethodLimits(ctx context.Context, types []stri
 		}
 		ml := pcAggregateMethodLimits(pt, matching)
 		ml.Currency = currency
+		if pt == payment.TypeNowPayments {
+			ml.Networks = s.pcAggregateNOWPaymentsNetworks(matching)
+		}
 		result = append(result, ml)
 	}
 	return result, nil
@@ -230,6 +237,36 @@ func unionFloat(agg float64, limited bool, val float64, wantMin bool) (float64, 
 		return val, true
 	}
 	return agg, true
+}
+
+// pcAggregateNOWPaymentsNetworks collects available crypto networks from
+// NOWPayments provider instances. Each instance's payCurrency config may be
+// a single value or comma-separated list. Returns the deduplicated union.
+func (s *PaymentConfigService) pcAggregateNOWPaymentsNetworks(instances []*dbent.PaymentProviderInstance) []string {
+	seen := make(map[string]bool)
+	var networks []string
+	for _, inst := range instances {
+		cfg := map[string]string{}
+		if s != nil {
+			decrypted, err := s.decryptConfig(inst.Config)
+			if err == nil && decrypted != nil {
+				cfg = decrypted
+			}
+		}
+		raw := strings.TrimSpace(cfg["payCurrency"])
+		if raw == "" {
+			continue
+		}
+		for _, token := range strings.Split(raw, ",") {
+			network := strings.TrimSpace(strings.ToLower(token))
+			if network == "" || seen[network] {
+				continue
+			}
+			seen[network] = true
+			networks = append(networks, network)
+		}
+	}
+	return networks
 }
 
 // pcAggregateMethodLimits computes the UNION (least restrictive) of limits

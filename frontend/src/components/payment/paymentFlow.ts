@@ -16,9 +16,10 @@ const VISIBLE_METHOD_ALIASES = {
   wxpay_direct: 'wxpay',
   stripe: 'stripe',
   airwallex: 'airwallex',
+  nowpayments: 'nowpayments',
 } as const
 
-export type VisiblePaymentMethod = 'alipay' | 'wxpay' | 'stripe' | 'airwallex'
+export type VisiblePaymentMethod = 'alipay' | 'wxpay' | 'stripe' | 'airwallex' | 'nowpayments'
 export type StripeVisibleMethod = 'alipay' | 'wechat_pay'
 export type PaymentLaunchKind =
   | 'qr_waiting'
@@ -26,6 +27,8 @@ export type PaymentLaunchKind =
   | 'stripe_popup'
   | 'stripe_route'
   | 'airwallex_route'
+  | 'nowpayments_route'
+  | 'crypto_wallet'
   | 'wechat_oauth'
   | 'wechat_jsapi'
   | 'unhandled'
@@ -47,6 +50,9 @@ export interface PaymentRecoverySnapshot {
   orderType: OrderType | ''
   paymentMode: string
   resumeToken: string
+  walletAddress: string
+  cryptoAmount: string
+  cryptoCurrency: string
   createdAt: number
 }
 
@@ -82,6 +88,7 @@ export interface BuildCreateOrderPayloadInput {
   isWechatBrowser: boolean
   /** When true, Alipay payments always use QR code (passes is_mobile: false to backend) */
   forceQRCode?: boolean
+  payCurrency?: string
 }
 
 type CreateOrderFlowResult = CreateOrderResult & {
@@ -136,6 +143,9 @@ export function buildCreateOrderPayload(input: BuildCreateOrderPayloadInput): Cr
   if (normalizedOrigin) {
     payload.return_url = `${normalizedOrigin}/payment/result`
   }
+  if (input.payCurrency) {
+    payload.pay_currency = input.payCurrency
+  }
 
   return payload
 }
@@ -162,6 +172,9 @@ export function decidePaymentLaunch(
     orderType: context.orderType,
     paymentMode: (result.payment_mode || '').trim(),
     resumeToken: result.resume_token || '',
+    walletAddress: result.wallet_address || '',
+    cryptoAmount: result.crypto_amount || '',
+    cryptoCurrency: result.crypto_currency || '',
   }, context.now)
 
   if (visibleMethod === 'airwallex' && baseState.clientSecret && baseState.intentId) {
@@ -170,6 +183,14 @@ export function decidePaymentLaunch(
     }
     const paymentState = { ...baseState, payUrl: context.airwallexRouteUrl || '' }
     return { kind: 'airwallex_route', paymentState, recovery: paymentState }
+  }
+
+  if (visibleMethod === 'nowpayments' && baseState.payUrl) {
+    return { kind: 'nowpayments_route', paymentState: baseState, recovery: baseState }
+  }
+
+  if (visibleMethod === 'nowpayments' && baseState.walletAddress) {
+    return { kind: 'crypto_wallet', paymentState: baseState, recovery: baseState }
   }
 
   if (baseState.clientSecret) {
@@ -279,6 +300,9 @@ export function readPaymentRecoverySnapshot(
       || typeof parsed.payAmount !== 'number'
       || typeof parsed.paymentMode !== 'string'
       || typeof parsed.resumeToken !== 'string'
+      || typeof parsed.walletAddress !== 'string'
+      || typeof parsed.cryptoAmount !== 'string'
+      || typeof parsed.cryptoCurrency !== 'string'
       || typeof parsed.createdAt !== 'number'
     ) {
       return null
@@ -310,6 +334,9 @@ export function readPaymentRecoverySnapshot(
       orderType: parsed.orderType === 'subscription' ? 'subscription' : 'balance',
       paymentMode: parsed.paymentMode,
       resumeToken: parsed.resumeToken,
+      walletAddress: parsed.walletAddress || '',
+      cryptoAmount: parsed.cryptoAmount || '',
+      cryptoCurrency: parsed.cryptoCurrency || '',
       createdAt: parsed.createdAt,
     }
   } catch {
