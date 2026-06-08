@@ -487,8 +487,6 @@ export interface PaginationConfig {
 
 // ==================== API Key & Group Types ====================
 
-<<<<<<< HEAD
-export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'deepseek' | 'qwen' | 'glm'
 export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'sora' | 'deepseek' | 'qwen' | 'glm' | 'other'
 
 export type SubscriptionType = 'standard' | 'subscription'
@@ -695,8 +693,6 @@ export interface UpdateGroupRequest {
 
 // ==================== Account & Proxy Types ====================
 
-<<<<<<< HEAD
-export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'deepseek' | 'qwen' | 'glm'
 export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'sora' | 'deepseek' | 'qwen' | 'glm' | 'other'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
