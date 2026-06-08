@@ -747,9 +747,14 @@ export default {
         note: 'Make sure the config directory exists. macOS/Linux users can run mkdir -p ~/.codex to create it.',
         noteWindows: 'Press Win+R and enter %userprofile%\\.codex to open the config directory. Create it manually if it does not exist.',
       },
+      openaiCompatible: {
+        description: 'Add the following OpenAI-compatible environment variables. These platforms usually support /v1/chat/completions but may not support the Responses API.',
+        note: 'These variables apply to the current terminal session. For vendor platforms like DeepSeek, GLM, and Qwen, prefer this integration path first.',
+      },
       cliTabs: {
         claudeCode: 'Claude Code',
         geminiCli: 'Gemini CLI',
+        openaiCompatible: 'OpenAI Compatible',
         codexCli: 'Codex CLI',
         codexCliWs: 'Codex CLI (WebSocket)',
         opencode: 'OpenCode',

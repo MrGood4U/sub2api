@@ -139,14 +139,13 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
-import type { GroupPlatform } from '@/types'
+import type { Group, GroupPlatform } from '@/types'
 
 interface Props {
   show: boolean
   apiKey: string
   baseUrl: string
-  platform: GroupPlatform | null
-  allowMessagesDispatch?: boolean
+  group: Group | null
 }
 
 interface Emits {
@@ -175,12 +174,25 @@ const { copyToClipboard: clipboardCopy } = useClipboard()
 const copiedIndex = ref<number | null>(null)
 const activeTab = ref<string>('unix')
 const activeClientTab = ref<string>('claude')
+const platform = computed<GroupPlatform | null>(() => props.group?.platform || null)
+const supportsOpenAIChatCompletions = computed(() => !!props.group?.supports_openai_chat_completions)
+const supportsOpenAIResponses = computed(() => !!props.group?.supports_openai_responses)
+const supportsAnthropicMessages = computed(() => !!props.group?.supports_anthropic_messages)
 
 // Reset tabs when platform changes
 const defaultClientTab = computed(() => {
-  switch (props.platform) {
+  switch (platform.value) {
     case 'openai':
-      return 'codex'
+      if (supportsOpenAIChatCompletions.value && !supportsOpenAIResponses.value) {
+        return 'openai-compatible'
+      }
+      if (supportsOpenAIResponses.value) {
+        return 'codex'
+      }
+      if (supportsAnthropicMessages.value) {
+        return 'claude'
+      }
+      return 'openai-compatible'
     case 'gemini':
       return 'gemini'
     case 'antigravity':
@@ -190,10 +202,19 @@ const defaultClientTab = computed(() => {
   }
 })
 
-watch(() => props.platform, () => {
-  activeTab.value = 'unix'
-  activeClientTab.value = defaultClientTab.value
-}, { immediate: true })
+watch(
+  () => [
+    platform.value,
+    supportsOpenAIChatCompletions.value,
+    supportsOpenAIResponses.value,
+    supportsAnthropicMessages.value
+  ],
+  () => {
+    activeTab.value = 'unix'
+    activeClientTab.value = defaultClientTab.value
+  },
+  { immediate: true }
+)
 
 // Reset shell tab when client changes
 watch(activeClientTab, () => {
@@ -264,17 +285,25 @@ const SparkleIcon = {
 }
 
 const clientTabs = computed((): TabConfig[] => {
-  if (!props.platform) return []
-  switch (props.platform) {
+  if (!platform.value) return []
+  switch (platform.value) {
     case 'openai': {
-      const tabs: TabConfig[] = [
-        { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
-        { id: 'codex-ws', label: t('keys.useKeyModal.cliTabs.codexCliWs'), icon: TerminalIcon },
-      ]
-      if (props.allowMessagesDispatch) {
+      const tabs: TabConfig[] = []
+      if (supportsOpenAIChatCompletions.value) {
+        tabs.push({ id: 'openai-compatible', label: t('keys.useKeyModal.cliTabs.openaiCompatible'), icon: TerminalIcon })
+      }
+      if (supportsOpenAIResponses.value) {
+        tabs.push(
+          { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
+          { id: 'codex-ws', label: t('keys.useKeyModal.cliTabs.codexCliWs'), icon: TerminalIcon }
+        )
+      }
+      if (supportsAnthropicMessages.value) {
         tabs.push({ id: 'claude', label: t('keys.useKeyModal.cliTabs.claudeCode'), icon: TerminalIcon })
       }
-      tabs.push({ id: 'opencode', label: t('keys.useKeyModal.cliTabs.opencode'), icon: TerminalIcon })
+      if (supportsOpenAIChatCompletions.value || supportsOpenAIResponses.value) {
+        tabs.push({ id: 'opencode', label: t('keys.useKeyModal.cliTabs.opencode'), icon: TerminalIcon })
+      }
       return tabs
     }
     case 'gemini':
@@ -303,6 +332,12 @@ const shellTabs: TabConfig[] = [
   { id: 'powershell', label: 'PowerShell', icon: WindowsIcon }
 ]
 
+const openAICompatibleTabs: TabConfig[] = [
+  { id: 'unix', label: 'macOS / Linux', icon: AppleIcon },
+  { id: 'cmd', label: 'Windows CMD', icon: WindowsIcon },
+  { id: 'powershell', label: 'PowerShell', icon: WindowsIcon }
+]
+
 // OpenAI tabs (2 OS types)
 const openaiTabs: TabConfig[] = [
   { id: 'unix', label: 'macOS / Linux', icon: AppleIcon },
@@ -316,12 +351,18 @@ const currentTabs = computed(() => {
   if (activeClientTab.value === 'codex' || activeClientTab.value === 'codex-ws') {
     return openaiTabs
   }
+  if (activeClientTab.value === 'openai-compatible') {
+    return openAICompatibleTabs
+  }
   return shellTabs
 })
 
 const platformDescription = computed(() => {
-  switch (props.platform) {
+  switch (platform.value) {
     case 'openai':
+      if (activeClientTab.value === 'openai-compatible') {
+        return t('keys.useKeyModal.openaiCompatible.description')
+      }
       if (activeClientTab.value === 'claude') {
         return t('keys.useKeyModal.description')
       }
@@ -336,8 +377,11 @@ const platformDescription = computed(() => {
 })
 
 const platformNote = computed(() => {
-  switch (props.platform) {
+  switch (platform.value) {
     case 'openai':
+      if (activeClientTab.value === 'openai-compatible') {
+        return t('keys.useKeyModal.openaiCompatible.note')
+      }
       if (activeClientTab.value === 'claude') {
         return t('keys.useKeyModal.note')
       }
@@ -373,10 +417,24 @@ const operator = (value: string) => wrapToken('text-slate-400', value)
 const string = (value: string) => wrapToken('text-amber-200', value)
 const comment = (value: string) => wrapToken('text-slate-500', value)
 
+const resolveGatewayBaseRoot = () => {
+  const configuredBase = props.baseUrl.trim()
+  if (configuredBase) {
+    return configuredBase.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
+  }
+
+  const devProxyTarget = (import.meta.env.VITE_DEV_PROXY_TARGET || '').trim()
+  if (import.meta.env.DEV && devProxyTarget) {
+    return devProxyTarget.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
+  }
+
+  return window.location.origin.replace(/\/+$/, '')
+}
+
 // Syntax highlighting helpers
 // Generate file configs based on platform and active tab
 const currentFiles = computed((): FileConfig[] => {
-  const baseUrl = props.baseUrl || window.location.origin
+  const baseUrl = resolveGatewayBaseRoot()
   const apiKey = props.apiKey
   const baseRoot = baseUrl.replace(/\/v1\/?$/, '').replace(/\/+$/, '')
   const ensureV1 = (value: string) => {
@@ -395,7 +453,7 @@ const currentFiles = computed((): FileConfig[] => {
   })()
 
   if (activeClientTab.value === 'opencode') {
-    switch (props.platform) {
+    switch (platform.value) {
       case 'anthropic':
         return [generateOpenCodeConfig('anthropic', apiBase, apiKey)]
       case 'openai':
@@ -412,8 +470,11 @@ const currentFiles = computed((): FileConfig[] => {
     }
   }
 
-  switch (props.platform) {
+  switch (platform.value) {
     case 'openai':
+      if (activeClientTab.value === 'openai-compatible') {
+        return [generateOpenAICompatibleEnvFile(apiBase, apiKey)]
+      }
       if (activeClientTab.value === 'claude') {
         return generateAnthropicFiles(baseUrl, apiKey)
       }
@@ -478,6 +539,34 @@ $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
     { path, content },
     { path: vscodeSettingsPath, content: vscodeContent, hint: 'VSCode Claude Code' }
   ]
+}
+
+function generateOpenAICompatibleEnvFile(baseUrl: string, apiKey: string): FileConfig {
+  let path: string
+  let content: string
+
+  switch (activeTab.value) {
+    case 'unix':
+      path = 'Terminal'
+      content = `export OPENAI_BASE_URL="${baseUrl}"
+export OPENAI_API_KEY="${apiKey}"`
+      break
+    case 'cmd':
+      path = 'Command Prompt'
+      content = `set OPENAI_BASE_URL=${baseUrl}
+set OPENAI_API_KEY=${apiKey}`
+      break
+    case 'powershell':
+      path = 'PowerShell'
+      content = `$env:OPENAI_BASE_URL="${baseUrl}"
+$env:OPENAI_API_KEY="${apiKey}"`
+      break
+    default:
+      path = 'Terminal'
+      content = ''
+  }
+
+  return { path, content }
 }
 
 function generateGeminiCliContent(baseUrl: string, apiKey: string): FileConfig {

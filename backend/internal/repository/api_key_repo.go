@@ -82,7 +82,13 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id int64) (*service.APIK
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	if out != nil && out.Group != nil {
+		if err := applyGroupProtocolCapabilities(ctx, r.sql, []*service.Group{out.Group}); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // GetKeyAndOwnerID 根据 API Key ID 获取其 key 与所有者（用户）ID。
@@ -120,7 +126,13 @@ func (r *apiKeyRepository) GetByKey(ctx context.Context, key string) (*service.A
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	if out != nil && out.Group != nil {
+		if err := applyGroupProtocolCapabilities(ctx, r.sql, []*service.Group{out.Group}); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*service.APIKey, error) {
@@ -203,7 +215,13 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	if out != nil && out.Group != nil {
+		if err := applyGroupProtocolCapabilities(ctx, r.sql, []*service.Group{out.Group}); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) error {
@@ -423,8 +441,16 @@ func (r *apiKeyRepository) ListByUserID(ctx context.Context, userID int64, param
 	}
 
 	outKeys := make([]service.APIKey, 0, len(keys))
+	groupPtrs := make([]*service.Group, 0, len(keys))
 	for i := range keys {
-		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
+		keyOut := apiKeyEntityToService(keys[i])
+		outKeys = append(outKeys, *keyOut)
+		if keyOut.Group != nil {
+			groupPtrs = append(groupPtrs, keyOut.Group)
+		}
+	}
+	if err := applyGroupProtocolCapabilities(ctx, r.sql, groupPtrs); err != nil {
+		return nil, nil, err
 	}
 
 	return outKeys, paginationResultFromTotal(int64(total), params), nil
@@ -477,7 +503,17 @@ func (r *apiKeyRepository) ListByGroupID(ctx context.Context, groupID int64, par
 
 	outKeys := make([]service.APIKey, 0, len(keys))
 	for i := range keys {
-		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
+		keyOut := apiKeyEntityToService(keys[i])
+		outKeys = append(outKeys, *keyOut)
+	}
+	groupPtrs := make([]*service.Group, 0, len(outKeys))
+	for i := range outKeys {
+		if outKeys[i].Group != nil {
+			groupPtrs = append(groupPtrs, outKeys[i].Group)
+		}
+	}
+	if err := applyGroupProtocolCapabilities(ctx, r.sql, groupPtrs); err != nil {
+		return nil, nil, err
 	}
 
 	return outKeys, paginationResultFromTotal(int64(total), params), nil

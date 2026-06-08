@@ -6,6 +6,7 @@ import (
 	"errors"
 	"hash/fnv"
 	"log/slog"
+	"net/url"
 	"reflect"
 	"sort"
 	"strconv"
@@ -58,6 +59,10 @@ type Account struct {
 	AccountGroups []AccountGroup
 	GroupIDs      []int64
 	Groups        []*Group
+	// 协议能力（动态推导，不持久化）
+	SupportsOpenAIChatCompletions bool
+	SupportsOpenAIResponses       bool
+	SupportsAnthropicMessages     bool
 
 	// model_mapping 热路径缓存（非持久化字段）
 	modelMappingCache               map[string]string
@@ -1035,6 +1040,60 @@ func (a *Account) IsInterceptWarmupEnabled() bool {
 	return false
 }
 
+func IsOpenAICompatiblePlatform(platform string) bool {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case PlatformOpenAI, PlatformSora, PlatformDeepSeek, PlatformQwen, PlatformGLM, PlatformOther:
+		return true
+	default:
+		return false
+	}
+}
+
+func isDeepSeekAnthropicBaseURL(baseURL string) bool {
+	baseURL = strings.ToLower(strings.TrimRight(strings.TrimSpace(baseURL), "/"))
+	return strings.HasSuffix(baseURL, "/anthropic")
+}
+
+func resolveGatewayPlatformForAccount(account *Account) string {
+	if account == nil {
+		return ""
+	}
+	switch strings.ToLower(strings.TrimSpace(account.Platform)) {
+	case PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformSora:
+		return account.Platform
+	case PlatformOpenAI, PlatformQwen, PlatformGLM, PlatformOther:
+		return PlatformOpenAI
+	case PlatformDeepSeek:
+		if account.Type == AccountTypeAPIKey && isDeepSeekAnthropicBaseURL(account.GetCredential("base_url")) {
+			return PlatformAnthropic
+		}
+		return PlatformOpenAI
+	default:
+		return account.Platform
+	}
+}
+
+func CompatibleAccountPlatformsForGatewayPlatform(platform string) []string {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case PlatformOpenAI:
+		return []string{PlatformOpenAI, PlatformDeepSeek, PlatformQwen, PlatformGLM, PlatformOther}
+	case PlatformAnthropic:
+		return []string{PlatformAnthropic, PlatformDeepSeek}
+	default:
+		return []string{platform}
+	}
+}
+
+func AccountMatchesGatewayPlatform(account *Account, platform string) bool {
+	if strings.TrimSpace(platform) == "" {
+		return true
+	}
+	if account == nil {
+		return false
+	}
+	return resolveGatewayPlatformForAccount(account) == strings.ToLower(strings.TrimSpace(platform))
+}
+
 func (a *Account) IsBedrock() bool {
 	return a.Platform == PlatformAnthropic && a.Type == AccountTypeBedrock
 }
@@ -1049,11 +1108,11 @@ func (a *Account) IsAPIKeyOrBedrock() bool {
 }
 
 func (a *Account) IsOpenAI() bool {
-	return a.Platform == PlatformOpenAI
+	return IsOpenAICompatiblePlatform(a.Platform) && resolveGatewayPlatformForAccount(a) == PlatformOpenAI
 }
 
 func (a *Account) IsAnthropic() bool {
-	return a.Platform == PlatformAnthropic
+	return resolveGatewayPlatformForAccount(a) == PlatformAnthropic
 }
 
 func (a *Account) IsOpenAIOAuth() bool {
@@ -1075,6 +1134,34 @@ func (a *Account) GetOpenAIBaseURL() string {
 		}
 	}
 	return "https://api.openai.com"
+}
+
+func (a *Account) SupportsOpenAIResponsesAPI() bool {
+	if a == nil || !a.IsOpenAI() {
+		return false
+	}
+	if a.Type == AccountTypeOAuth {
+		return true
+	}
+	if a.Type != AccountTypeAPIKey {
+		return false
+	}
+
+	baseURL := strings.TrimSpace(a.GetOpenAIBaseURL())
+	if baseURL == "" {
+		return false
+	}
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+	switch host {
+	case "api.openai.com", "chatgpt.com", "api.chatgpt.com":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *Account) GetOpenAIAccessToken() string {

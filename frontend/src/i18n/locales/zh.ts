@@ -747,9 +747,14 @@ export default {
         noteWindows:
           '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。'
       },
+      openaiCompatible: {
+        description: '将以下 OpenAI 兼容配置添加到终端环境中。此类平台通常支持 /v1/chat/completions，但不一定支持 Responses API。',
+        note: '这些环境变量将在当前终端会话中生效。对于 DeepSeek、GLM、Qwen 等国产平台，优先使用此接入方式。'
+      },
       cliTabs: {
         claudeCode: 'Claude Code',
         geminiCli: 'Gemini CLI',
+        openaiCompatible: 'OpenAI Compatible',
         codexCli: 'Codex CLI',
         codexCliWs: 'Codex CLI (WebSocket)',
         opencode: 'OpenCode'

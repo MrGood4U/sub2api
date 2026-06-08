@@ -112,7 +112,11 @@ func (r *groupRepository) GetByIDLite(ctx context.Context, id int64) (*service.G
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrGroupNotFound, nil)
 	}
-	return groupEntityToService(m), nil
+	out := groupEntityToService(m)
+	if err := applyGroupProtocolCapabilities(ctx, r.sql, []*service.Group{out}); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) error {
@@ -282,6 +286,13 @@ func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination
 			outGroups[i].ActiveAccountCount = c.Active
 			outGroups[i].RateLimitedAccountCount = c.RateLimited
 		}
+	}
+	groupPtrs := make([]*service.Group, 0, len(outGroups))
+	for i := range outGroups {
+		groupPtrs = append(groupPtrs, &outGroups[i])
+	}
+	if err := applyGroupProtocolCapabilities(ctx, r.sql, groupPtrs); err != nil {
+		return nil, nil, err
 	}
 
 	return outGroups, paginationResultFromTotal(int64(total), params), nil
@@ -454,6 +465,13 @@ func (r *groupRepository) ListActive(ctx context.Context) ([]service.Group, erro
 			outGroups[i].RateLimitedAccountCount = c.RateLimited
 		}
 	}
+	groupPtrs := make([]*service.Group, 0, len(outGroups))
+	for i := range outGroups {
+		groupPtrs = append(groupPtrs, &outGroups[i])
+	}
+	if err := applyGroupProtocolCapabilities(ctx, r.sql, groupPtrs); err != nil {
+		return nil, err
+	}
 
 	return outGroups, nil
 }
@@ -483,6 +501,13 @@ func (r *groupRepository) ListActiveByPlatform(ctx context.Context, platform str
 			outGroups[i].ActiveAccountCount = c.Active
 			outGroups[i].RateLimitedAccountCount = c.RateLimited
 		}
+	}
+	groupPtrs := make([]*service.Group, 0, len(outGroups))
+	for i := range outGroups {
+		groupPtrs = append(groupPtrs, &outGroups[i])
+	}
+	if err := applyGroupProtocolCapabilities(ctx, r.sql, groupPtrs); err != nil {
+		return nil, err
 	}
 
 	return outGroups, nil

@@ -248,6 +248,13 @@
                 <span :class="['h-1.5 w-1.5 rounded-full', getOpenAICompactMeta(row)?.dotClass]" />
                 <span>{{ getOpenAICompactMeta(row)?.label }}</span>
               </div>
+              <ProtocolCapabilityBadges
+                v-bind="{
+                  supportsOpenAIChatCompletions: row.supports_openai_chat_completions,
+                  supportsOpenAIResponses: row.supports_openai_responses,
+                  supportsAnthropicMessages: row.supports_anthropic_messages
+                }"
+              />
             </div>
           </template>
           <template #cell-capacity="{ row }">
@@ -428,6 +435,7 @@ import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vu
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
+import ProtocolCapabilityBadges from '@/components/common/ProtocolCapabilityBadges.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfilesModal.vue'

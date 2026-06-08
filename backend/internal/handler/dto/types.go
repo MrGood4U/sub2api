@@ -112,6 +112,10 @@ type Group struct {
 
 	// OpenAI Messages 调度开关（用户侧需要此字段判断是否展示 Claude Code 教程）
 	AllowMessagesDispatch bool `json:"allow_messages_dispatch"`
+	// 协议能力（动态推导）
+	SupportsOpenAIChatCompletions bool `json:"supports_openai_chat_completions"`
+	SupportsOpenAIResponses       bool `json:"supports_openai_responses"`
+	SupportsAnthropicMessages     bool `json:"supports_anthropic_messages"`
 
 	// 账号过滤控制（仅 OpenAI/Antigravity 平台有效）
 	RequireOAuthOnly  bool `json:"require_oauth_only"`
@@ -234,6 +238,10 @@ type Account struct {
 	QuotaDailyUsed   *float64 `json:"quota_daily_used,omitempty"`
 	QuotaWeeklyLimit *float64 `json:"quota_weekly_limit,omitempty"`
 	QuotaWeeklyUsed  *float64 `json:"quota_weekly_used,omitempty"`
+	// 协议能力（动态推导）
+	SupportsOpenAIChatCompletions bool `json:"supports_openai_chat_completions"`
+	SupportsOpenAIResponses       bool `json:"supports_openai_responses"`
+	SupportsAnthropicMessages     bool `json:"supports_anthropic_messages"`
 
 	// 配额固定时间重置配置
 	QuotaDailyResetMode  *string `json:"quota_daily_reset_mode,omitempty"`
