@@ -1582,11 +1582,20 @@ func (a *Account) IsOpenAIOAuthPassthroughEnabled() bool {
 	return a != nil && a.IsOpenAIOAuth() && a.IsOpenAIPassthroughEnabled()
 }
 
-// IsAnthropicAPIKeyPassthroughEnabled 返回 Anthropic API Key 账号是否启用"自动透传（仅替换认证）"。
-// 字段：accounts.extra.anthropic_passthrough。
-// 字段缺失或类型不正确时，按 false（关闭）处理。
+// IsAnthropicAPIKeyPassthroughEnabled 返回 Anthropic-compatible API Key 账号是否启用
+// "自动透传（仅替换认证）"。
+//
+// 官方 Anthropic API Key 账号继续读取 accounts.extra.anthropic_passthrough 显式开关。
+// 对于以 Anthropic Messages 协议接入的 vendor 平台（例如 DeepSeek /anthropic），
+// 透传是默认能力，不要求额外显式打开。
 func (a *Account) IsAnthropicAPIKeyPassthroughEnabled() bool {
-	if a == nil || a.Platform != PlatformAnthropic || a.Type != AccountTypeAPIKey || a.Extra == nil {
+	if a == nil || a.Type != AccountTypeAPIKey || !a.IsAnthropic() {
+		return false
+	}
+	if a.Platform != PlatformAnthropic {
+		return true
+	}
+	if a.Extra == nil {
 		return false
 	}
 	enabled, ok := a.Extra["anthropic_passthrough"].(bool)

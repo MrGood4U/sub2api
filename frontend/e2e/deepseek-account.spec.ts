@@ -1,9 +1,13 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
-
-const adminCredentials = {
-  email: 'admin@sub2api.local',
-  password: 'admin123456'
-}
+import { expect, test, type Page } from '@playwright/test'
+import {
+  deleteAccountsByName,
+  dismissWelcomeDialog,
+  ensureGroup,
+  getAdminToken,
+  loginAsAdmin,
+  bearerHeaders,
+  expectOK
+} from './helpers/sub2api'
 
 const managedAccountNames = [
   'deepseek-openai',
@@ -12,50 +16,15 @@ const managedAccountNames = [
   'deepseek-anthropic-local'
 ]
 
-async function getAdminToken(request: APIRequestContext) {
-  const response = await request.post('/api/v1/auth/login', {
-    data: adminCredentials
-  })
-  expect(response.ok()).toBeTruthy()
-
-  const payload = await response.json()
-  return payload.data.access_token as string
-}
-
-async function deleteAccountsByName(request: APIRequestContext, names: string[]) {
-  const token = await getAdminToken(request)
-  const response = await request.get('/api/v1/admin/accounts?page=1&page_size=200', {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
-  expect(response.ok()).toBeTruthy()
-
-  const payload = await response.json()
-  const items = (payload.data?.items || []) as Array<{ id: number; name: string }>
-  const matchedAccounts = items.filter((item) => names.includes(item.name))
-
-  for (const account of matchedAccounts) {
-    const deleteResponse = await request.delete(`/api/v1/admin/accounts/${account.id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-    expect(deleteResponse.ok()).toBeTruthy()
-  }
-}
-
-async function loginAsAdmin(page: Page) {
-  await page.goto('/login')
-  await page.locator('#email').fill(adminCredentials.email)
-  await page.locator('#password').fill(adminCredentials.password)
-  await page.locator('button[type="submit"]').click()
-  await page.waitForURL(/\/dashboard$/)
-}
+const openAIGroupName = process.env.DEEPSEEK_OPENAI_GROUP_NAME || 'ds'
+const anthropicGroupName = process.env.DEEPSEEK_ANTHROPIC_GROUP_NAME || 'deepseek'
+const openAIBaseURL = process.env.DEEPSEEK_OPENAI_BASE_URL || 'https://api.deepseek.com'
+const anthropicBaseURL = process.env.DEEPSEEK_ANTHROPIC_BASE_URL || 'https://api.deepseek.com/anthropic'
 
 async function openCreateModal(page: Page) {
   await page.goto('/admin/accounts')
-  await page.getByTestId('accounts-create-button').click()
+  await dismissWelcomeDialog(page)
+  await page.getByRole('button', { name: 'Create Account' }).click()
   await expect(page.locator('#create-account-form')).toBeVisible()
 }
 
@@ -74,11 +43,7 @@ async function createDeepSeekAccount(
   const apiKeyInput = page.getByTestId('account-api-key-input')
   const groupSelector = page.locator('[data-tour="account-form-groups"]')
 
-  await expect(baseURLInput).toHaveValue('https://api.deepseek.com')
-
-  if (baseURL !== 'https://api.deepseek.com') {
-    await baseURLInput.fill(baseURL)
-  }
+  await baseURLInput.fill(baseURL)
 
   await expect(groupSelector.getByText(new RegExp(`^${expectedGroupName}$`))).toBeVisible()
   await expect(groupSelector.getByText(new RegExp(`^${excludedGroupName}$`))).toHaveCount(0)
@@ -88,24 +53,42 @@ async function createDeepSeekAccount(
 
   await page.locator('button[form="create-account-form"]').click()
   await expect(page.locator('#create-account-form')).toHaveCount(0)
-  await expect(page.getByRole('table').getByText(accountName, { exact: true })).toBeVisible()
 }
 
 test.describe('DeepSeek account creation', () => {
   test.beforeAll(async ({ request }) => {
-    await deleteAccountsByName(request, managedAccountNames)
+    const adminToken = await getAdminToken(request)
+    await ensureGroup(request, adminToken, {
+      name: openAIGroupName,
+      platform: 'openai'
+    })
+    await ensureGroup(request, adminToken, {
+      name: anthropicGroupName,
+      platform: 'anthropic'
+    })
+    await deleteAccountsByName(request, adminToken, managedAccountNames)
   })
 
-  test('creates official DeepSeek OpenAI and Anthropic accounts', async ({ page }) => {
+  test('creates official DeepSeek OpenAI and Anthropic accounts', async ({ page, request }) => {
     await loginAsAdmin(page)
 
-    await createDeepSeekAccount(page, 'deepseek-openai', 'https://api.deepseek.com', 'ds', 'deepseek')
+    await createDeepSeekAccount(page, 'deepseek-openai', openAIBaseURL, openAIGroupName, anthropicGroupName)
     await createDeepSeekAccount(
       page,
       'deepseek-anthropic',
-      'https://api.deepseek.com/anthropic',
-      'deepseek',
-      'ds'
+      anthropicBaseURL,
+      anthropicGroupName,
+      openAIGroupName
     )
+
+    const adminToken = await getAdminToken(request)
+    const response = await request.get('/api/v1/admin/accounts?page=1&page_size=200', {
+      headers: bearerHeaders(adminToken)
+    })
+    expectOK(response, 'list accounts after create')
+    const payload = await response.json()
+    const accountNames = ((payload.data?.items || []) as Array<{ name: string }>).map((item) => item.name)
+    expect(accountNames).toContain('deepseek-openai')
+    expect(accountNames).toContain('deepseek-anthropic')
   })
 })

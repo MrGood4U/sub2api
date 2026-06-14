@@ -461,9 +461,17 @@ func (s *SchedulerSnapshotService) rebuildByAccount(ctx context.Context, account
 		return nil
 	}
 
+	platformsToRebuild := []string{account.Platform}
+	gatewayPlatform := resolveGatewayPlatformForAccount(account)
+	if gatewayPlatform != "" && gatewayPlatform != account.Platform {
+		platformsToRebuild = append(platformsToRebuild, gatewayPlatform)
+	}
+
 	var firstErr error
-	if err := s.rebuildBucketsForPlatform(ctx, account.Platform, groupIDs, reason, seen); err != nil && firstErr == nil {
-		firstErr = err
+	for _, platform := range platformsToRebuild {
+		if err := s.rebuildBucketsForPlatform(ctx, platform, groupIDs, reason, seen); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	if account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled() {
 		if err := s.rebuildBucketsForPlatform(ctx, PlatformAnthropic, groupIDs, reason, seen); err != nil && firstErr == nil {
@@ -643,7 +651,8 @@ func (s *SchedulerSnapshotService) loadAccountsFromDB(ctx context.Context, bucke
 	}
 
 	if useMixed {
-		platforms := []string{bucket.Platform, PlatformAntigravity}
+		platforms := CompatibleAccountPlatformsForGatewayPlatform(bucket.Platform)
+		platforms = append(platforms, PlatformAntigravity)
 		var accounts []Account
 		var err error
 		if groupID > 0 {
@@ -659,6 +668,33 @@ func (s *SchedulerSnapshotService) loadAccountsFromDB(ctx context.Context, bucke
 		filtered := make([]Account, 0, len(accounts))
 		for _, acc := range accounts {
 			if acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
+				continue
+			}
+			if acc.Platform != PlatformAntigravity && !AccountMatchesGatewayPlatform(&acc, bucket.Platform) {
+				continue
+			}
+			filtered = append(filtered, acc)
+		}
+		return filtered, nil
+	}
+
+	compatiblePlatforms := CompatibleAccountPlatformsForGatewayPlatform(bucket.Platform)
+	if len(compatiblePlatforms) > 1 {
+		var accounts []Account
+		var err error
+		if groupID > 0 {
+			accounts, err = s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, groupID, compatiblePlatforms)
+		} else if s.isRunModeSimple() {
+			accounts, err = s.accountRepo.ListSchedulableByPlatforms(ctx, compatiblePlatforms)
+		} else {
+			accounts, err = s.accountRepo.ListSchedulableUngroupedByPlatforms(ctx, compatiblePlatforms)
+		}
+		if err != nil {
+			return nil, err
+		}
+		filtered := make([]Account, 0, len(accounts))
+		for _, acc := range accounts {
+			if !AccountMatchesGatewayPlatform(&acc, bucket.Platform) {
 				continue
 			}
 			filtered = append(filtered, acc)

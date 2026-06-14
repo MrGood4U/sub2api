@@ -1494,7 +1494,7 @@
 
       <!-- Anthropic API Key 自动透传开关 -->
       <div
-        v-if="account?.platform === 'anthropic' && account?.type === 'apikey'"
+        v-if="isAnthropicCompatibleEditAccount"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -1524,7 +1524,7 @@
 
       <!-- Anthropic API Key: Web Search Emulation (hidden when global disabled) -->
       <div
-        v-if="account?.platform === 'anthropic' && account?.type === 'apikey' && webSearchGlobalEnabled"
+        v-if="isAnthropicCompatibleEditAccount && webSearchGlobalEnabled"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -2316,6 +2316,7 @@
         v-model="form.group_ids"
         :groups="groups"
         :platform="account?.platform"
+        :compatible-platform="groupPlatform"
         :mixed-scheduling="mixedScheduling"
         data-tour="account-form-groups"
       />
@@ -2384,6 +2385,7 @@ import type {
   Account,
   Proxy,
   AdminGroup,
+  GroupPlatform,
   CheckMixedChannelResponse,
   OpenAICompactMode,
   OpenAIResponsesMode,
@@ -2412,6 +2414,12 @@ import {
   resolveOpenAIWSModeFromExtra
 } from '@/utils/openaiWsMode'
 import {
+  isAnthropicCompatiblePlatform,
+  isOpenAICompatiblePlatform,
+  resolveCompatibleGroupPlatform,
+  resolveDefaultAccountBaseURL
+} from '@/utils/accountPlatform'
+import {
   getPresetMappingsByPlatform,
   commonErrorCodes,
   buildModelMappingObject,
@@ -2439,9 +2447,19 @@ const authStore = useAuthStore()
 // Platform-specific hint for Base URL
 const baseUrlHint = computed(() => {
   if (!props.account) return t('admin.accounts.baseUrlHint')
-  if (props.account.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
+  if (isOpenAICompatiblePlatform(props.account.platform)) return t('admin.accounts.openai.baseUrlHint')
   if (props.account.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   return t('admin.accounts.baseUrlHint')
+})
+
+const isAnthropicCompatibleEditAccount = computed(() => {
+  if (!props.account || props.account.type !== 'apikey') {
+    return false
+  }
+  return isAnthropicCompatiblePlatform(
+    props.account.platform,
+    (props.account.credentials as Record<string, unknown> | undefined)?.base_url as string | undefined
+  )
 })
 
 const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('antigravity'))
@@ -2839,11 +2857,11 @@ const tempUnschedPresets = computed(() => [
 ])
 
 // Computed: default base URL based on platform
-const defaultBaseUrl = computed(() => {
-  if (props.account?.platform === 'openai') return 'https://api.openai.com'
-  if (props.account?.platform === 'gemini') return 'https://generativelanguage.googleapis.com'
-  return 'https://api.anthropic.com'
-})
+const defaultBaseUrl = computed(() => resolveDefaultAccountBaseURL(props.account?.platform))
+
+const groupPlatform = computed<GroupPlatform | null>(() =>
+  resolveCompatibleGroupPlatform(props.account?.platform, editBaseUrl.value || defaultBaseUrl.value)
+)
 
 const mixedChannelWarningMessageText = computed(() => {
   if (mixedChannelWarningDetails.value) {
@@ -3009,8 +3027,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
       openAICompactModelMappings.value = Object.entries(compactMappings).map(([from, to]) => ({ from, to }))
     }
   }
-  if (newAccount.platform === 'anthropic' && newAccount.type === 'apikey') {
-    anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
+  const baseURL = (newAccount.credentials as Record<string, unknown> | undefined)?.base_url as string | undefined
+  if (newAccount.type === 'apikey' && isAnthropicCompatiblePlatform(newAccount.platform, baseURL)) {
+    anthropicPassthroughEnabled.value =
+      newAccount.platform === 'anthropic' ? extra?.anthropic_passthrough === true : true
     // 三态：string "default"/"enabled"/"disabled"，向后兼容旧 bool
     const wsVal = extra?.web_search_emulation
     if (wsVal === 'enabled' || wsVal === 'disabled') {
@@ -4056,7 +4076,13 @@ const handleSubmit = async () => {
     }
 
     // For Anthropic API Key accounts, handle passthrough mode + web search emulation in extra
-    if (props.account.platform === 'anthropic' && props.account.type === 'apikey') {
+    if (
+      props.account.type === 'apikey' &&
+      isAnthropicCompatiblePlatform(
+        props.account.platform,
+        (props.account.credentials as Record<string, unknown> | undefined)?.base_url as string | undefined
+      )
+    ) {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) || (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       if (anthropicPassthroughEnabled.value) {

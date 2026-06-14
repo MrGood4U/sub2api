@@ -74,6 +74,7 @@
           <button
             type="button"
             @click="form.platform = 'deepseek'"
+            data-testid="account-platform-deepseek"
             :class="[
               'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
               form.platform === 'deepseek'
@@ -1054,6 +1055,7 @@
             v-model="apiKeyBaseUrl"
             type="text"
             class="input"
+            data-testid="account-base-url-input"
             :placeholder="
               form.platform === 'openai'
                 ? 'https://api.openai.com'
@@ -1077,6 +1079,7 @@
             type="password"
             required
             class="input font-mono"
+            data-testid="account-api-key-input"
             :placeholder="
               form.platform === 'openai'
                 ? 'sk-proj-...'
@@ -2603,7 +2606,7 @@
 
       <!-- Anthropic API Key 自动透传开关 -->
       <div
-        v-if="form.platform === 'anthropic' && accountCategory === 'apikey'"
+        v-if="isAnthropicCompatibleAPIKeyPlatform"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -2633,7 +2636,7 @@
 
       <!-- Anthropic API Key: Web Search Emulation (hidden when global disabled) -->
       <div
-        v-if="form.platform === 'anthropic' && accountCategory === 'apikey' && webSearchGlobalEnabled"
+        v-if="isAnthropicCompatibleAPIKeyPlatform && webSearchGlobalEnabled"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -2888,6 +2891,7 @@
           v-model="form.group_ids"
           :groups="groups"
           :platform="form.platform"
+          :compatible-platform="groupPlatform"
           :mixed-scheduling="mixedScheduling"
           data-tour="account-form-groups"
         />
@@ -3266,6 +3270,7 @@ import type {
   AdminGroup,
   AccountPlatform,
   AccountType,
+  GroupPlatform,
   CheckMixedChannelResponse,
   CreateAccountRequest,
   CodexSessionImportMessage,
@@ -3295,6 +3300,12 @@ import {
   resolveOpenAIWSModeConcurrencyHintKey,
   type OpenAIWSMode
 } from '@/utils/openaiWsMode'
+import {
+  isAnthropicCompatiblePlatform,
+  isOpenAICompatiblePlatform,
+  resolveCompatibleGroupPlatform,
+  resolveDefaultAccountBaseURL
+} from '@/utils/accountPlatform'
 import OAuthAuthorizationFlow from './OAuthAuthorizationFlow.vue'
 
 // Type for exposed OAuthAuthorizationFlow component
@@ -3315,7 +3326,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 
 const oauthStepTitle = computed(() => {
-  if (form.platform === 'openai') return t('admin.accounts.oauth.openai.title')
+  if (isOpenAICompatiblePlatform(form.platform)) return t('admin.accounts.oauth.openai.title')
   if (form.platform === 'gemini') return t('admin.accounts.oauth.gemini.title')
   if (form.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.title')
   return t('admin.accounts.oauth.title')
@@ -3323,16 +3334,25 @@ const oauthStepTitle = computed(() => {
 
 // Platform-specific hints for API Key type
 const baseUrlHint = computed(() => {
-  if (form.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
+  if (isOpenAICompatiblePlatform(form.platform)) return t('admin.accounts.openai.baseUrlHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   return t('admin.accounts.baseUrlHint')
 })
 
 const apiKeyHint = computed(() => {
-  if (form.platform === 'openai') return t('admin.accounts.openai.apiKeyHint')
+  if (isOpenAICompatiblePlatform(form.platform)) return t('admin.accounts.openai.apiKeyHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.apiKeyHint')
   return t('admin.accounts.apiKeyHint')
 })
+
+const groupPlatform = computed<GroupPlatform | null>(() =>
+  resolveCompatibleGroupPlatform(form.platform, apiKeyBaseUrl.value)
+)
+
+const isAnthropicCompatibleAPIKeyPlatform = computed(() =>
+  accountCategory.value === 'apikey' &&
+  isAnthropicCompatiblePlatform(form.platform, apiKeyBaseUrl.value)
+)
 
 interface Props {
   show: boolean
@@ -3744,6 +3764,9 @@ const form = reactive({
 
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {
+  if (form.platform === 'deepseek' || form.platform === 'qwen' || form.platform === 'glm') {
+    return false
+  }
   // Antigravity upstream 类型不需要 OAuth 流程
   if (form.platform === 'antigravity' && antigravityAccountType.value === 'upstream') {
     return false
@@ -3844,12 +3867,7 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    apiKeyBaseUrl.value =
-      (newPlatform === 'openai')
-        ? 'https://api.openai.com'
-        : newPlatform === 'gemini'
-          ? 'https://generativelanguage.googleapis.com'
-          : 'https://api.anthropic.com'
+    apiKeyBaseUrl.value = resolveDefaultAccountBaseURL(newPlatform)
     // Clear model-related settings
     allowedModels.value = []
     modelMappings.value = []
@@ -3862,6 +3880,8 @@ watch(
       antigravityWhitelistModels.value = []
       accountCategory.value = 'oauth-based'
       antigravityAccountType.value = 'oauth'
+    } else if (newPlatform === 'deepseek' || newPlatform === 'qwen' || newPlatform === 'glm') {
+      accountCategory.value = 'apikey'
     } else {
       allowOverages.value = false
       antigravityWhitelistModels.value = []
@@ -3898,9 +3918,11 @@ watch(
       codexCLIOnlyEnabled.value = false
       codexCLIOnlyAllowClaudeCodeEnabled.value = false
     }
-    if (newPlatform !== 'anthropic') {
+    if (!isAnthropicCompatiblePlatform(newPlatform, apiKeyBaseUrl.value)) {
       anthropicPassthroughEnabled.value = false
       webSearchEmulationMode.value = 'default'
+    } else if (accountCategory.value === 'apikey' && newPlatform !== 'anthropic') {
+      anthropicPassthroughEnabled.value = true
     }
     // Reset OAuth states
     oauth.resetState()
@@ -3919,11 +3941,23 @@ watch(
       codexCLIOnlyEnabled.value = false
       codexCLIOnlyAllowClaudeCodeEnabled.value = false
     }
-    if (platform !== 'anthropic' || category !== 'apikey') {
+    if (category !== 'apikey' || !isAnthropicCompatiblePlatform(platform, apiKeyBaseUrl.value)) {
       anthropicPassthroughEnabled.value = false
       webSearchEmulationMode.value = 'default'
+    } else if (platform !== 'anthropic') {
+      anthropicPassthroughEnabled.value = true
     }
   }
+)
+
+watch(
+  [() => form.platform, apiKeyBaseUrl, accountCategory],
+  ([platform, baseURL, category]) => {
+    if (category === 'apikey' && platform !== 'anthropic' && isAnthropicCompatiblePlatform(platform, baseURL)) {
+      anthropicPassthroughEnabled.value = true
+    }
+  },
+  { immediate: true }
 )
 
 watch(
@@ -4262,7 +4296,7 @@ const resetForm = () => {
   form.expires_at = null
   accountCategory.value = 'oauth-based'
   addMethod.value = 'oauth'
-  apiKeyBaseUrl.value = 'https://api.anthropic.com'
+  apiKeyBaseUrl.value = resolveDefaultAccountBaseURL(form.platform)
   apiKeyValue.value = ''
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
@@ -4406,7 +4440,7 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
 }
 
 const buildAnthropicExtra = (base?: Record<string, unknown>): Record<string, unknown> | undefined => {
-  if (form.platform !== 'anthropic' || accountCategory.value !== 'apikey') {
+  if (!isAnthropicCompatiblePlatform(form.platform, apiKeyBaseUrl.value) || accountCategory.value !== 'apikey') {
     return base
   }
 
@@ -4663,12 +4697,7 @@ const handleSubmit = async () => {
   }
 
   // Determine default base URL based on platform
-  const defaultBaseUrl =
-    form.platform === 'openai'
-      ? 'https://api.openai.com'
-      : form.platform === 'gemini'
-        ? 'https://generativelanguage.googleapis.com'
-        : 'https://api.anthropic.com'
+  const defaultBaseUrl = resolveDefaultAccountBaseURL(form.platform)
 
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {

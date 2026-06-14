@@ -189,6 +189,85 @@ func TestGatewaySelectAccountWithLoadAwareness_HydratesSelectedAccountFromSchedu
 	}
 }
 
+func TestGatewaySelectAccountWithLoadAwareness_DeepSeekAnthropicSnapshotKeepsProtocolClassification(t *testing.T) {
+	groupID := int64(23)
+	cache := &snapshotHydrationCache{
+		snapshot: []*Account{
+			{
+				ID:          19,
+				Platform:    PlatformDeepSeek,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Priority:    1,
+				Credentials: map[string]any{
+					"base_url": "https://api.deepseek.com/anthropic",
+				},
+				Extra: map[string]any{
+					"anthropic_passthrough": true,
+				},
+				AccountGroups: []AccountGroup{
+					{AccountID: 19, GroupID: groupID},
+				},
+				GroupIDs: []int64{groupID},
+			},
+		},
+		accounts: map[int64]*Account{
+			19: {
+				ID:          19,
+				Platform:    PlatformDeepSeek,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Priority:    1,
+				Credentials: map[string]any{
+					"api_key":  "deepseek-live-key",
+					"base_url": "https://api.deepseek.com/anthropic",
+				},
+				Extra: map[string]any{
+					"anthropic_passthrough": true,
+				},
+			},
+		},
+	}
+
+	svc := &GatewayService{
+		schedulerSnapshot: NewSchedulerSnapshotService(cache, nil, nil, nil, nil),
+		groupRepo: &mockGroupRepoForGateway{
+			groups: map[int64]*Group{
+				groupID: {
+					ID:       groupID,
+					Platform: PlatformAnthropic,
+					Status:   StatusActive,
+					Hydrated: true,
+				},
+			},
+		},
+		cache:              &mockGatewayCacheForPlatform{},
+		concurrencyService: NewConcurrencyService(&mockConcurrencyCache{}),
+		cfg:                testConfig(),
+	}
+
+	result, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "deepseek-v4-pro", nil, "", 0)
+	if err != nil {
+		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
+	}
+	if result == nil || result.Account == nil {
+		t.Fatalf("expected selected account")
+	}
+	if result.Account.ID != 19 {
+		t.Fatalf("expected deepseek anthropic account to be selected, got %d", result.Account.ID)
+	}
+	if got := result.Account.GetCredential("api_key"); got != "deepseek-live-key" {
+		t.Fatalf("expected hydrated api key, got %q", got)
+	}
+	if !result.Account.IsAnthropic() {
+		t.Fatalf("expected hydrated account to remain anthropic-compatible")
+	}
+}
+
 func TestGatewaySelectAccountWithLoadAwareness_SkipsAntigravityGeminiFamilyRateLimitedSnapshot(t *testing.T) {
 	resetAt := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
 	cache := &snapshotHydrationCache{

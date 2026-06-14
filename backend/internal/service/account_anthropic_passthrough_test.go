@@ -59,4 +59,15 @@ func TestAccount_IsAnthropicAPIKeyPassthroughEnabled(t *testing.T) {
 		}
 		require.False(t, openai.IsAnthropicAPIKeyPassthroughEnabled())
 	})
+
+	t.Run("Anthropic-compatible vendor API Key 默认开启", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformDeepSeek,
+			Type:     AccountTypeAPIKey,
+			Credentials: map[string]any{
+				"base_url": "https://api.deepseek.com/anthropic",
+			},
+		}
+		require.True(t, account.IsAnthropicAPIKeyPassthroughEnabled())
+	})
 }

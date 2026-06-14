@@ -102,3 +102,43 @@ func TestSchedulerCacheSnapshotUsesSlimMetadataButKeepsFullAccount(t *testing.T)
 	require.Len(t, full.AccountGroups, 1)
 	require.NotNil(t, full.AccountGroups[0].Group)
 }
+
+func TestSchedulerCacheSnapshotKeepsVendorProtocolHints(t *testing.T) {
+	ctx := context.Background()
+	rdb := testRedis(t)
+	cache := NewSchedulerCache(rdb)
+
+	bucket := service.SchedulerBucket{GroupID: 9, Platform: service.PlatformAnthropic, Mode: service.SchedulerModeMixed}
+	account := service.Account{
+		ID:          202,
+		Name:        "deepseek-anthropic",
+		Platform:    service.PlatformDeepSeek,
+		Type:        service.AccountTypeAPIKey,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-deepseek",
+			"base_url": "https://api.deepseek.com/anthropic",
+		},
+		Extra: map[string]any{
+			"anthropic_passthrough": true,
+			"web_search_emulation":  "enabled",
+		},
+		GroupIDs: []int64{bucket.GroupID},
+	}
+
+	require.NoError(t, cache.SetSnapshot(ctx, bucket, []service.Account{account}))
+
+	snapshot, hit, err := cache.GetSnapshot(ctx, bucket)
+	require.NoError(t, err)
+	require.True(t, hit)
+	require.Len(t, snapshot, 1)
+
+	got := snapshot[0]
+	require.NotNil(t, got)
+	require.Equal(t, "https://api.deepseek.com/anthropic", got.GetCredential("base_url"))
+	require.True(t, got.IsAnthropic())
+	require.True(t, got.IsAnthropicAPIKeyPassthroughEnabled())
+	require.Equal(t, "enabled", got.Extra["web_search_emulation"])
+}
