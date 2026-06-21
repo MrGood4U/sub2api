@@ -3064,6 +3064,7 @@ import Select from "@/components/common/Select.vue";
 import PlatformIcon from "@/components/common/PlatformIcon.vue";
 import ProtocolCapabilityBadges from "@/components/common/ProtocolCapabilityBadges.vue";
 import Icon from "@/components/icons/Icon.vue";
+import { resolveCompatibleGroupPlatform } from "@/utils/accountPlatform";
 import GroupRateMultipliersModal from "@/components/admin/group/GroupRateMultipliersModal.vue";
 import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesModal.vue";
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
@@ -3440,36 +3441,6 @@ const clearAllAccountSearchState = () => {
   accountSearchKeyword.value = {};
   accountSearchResults.value = {};
   showAccountDropdown.value = {};
-};
-
-const isDeepSeekAnthropicBaseURL = (baseURL?: string | null) =>
-  (baseURL || "").trim().toLowerCase().replace(/\/+$/, "").endsWith("/anthropic");
-
-const resolveCompatibleGroupPlatform = (
-  platform?: string | null,
-  baseURL?: string | null,
-): GroupPlatform | null => {
-  if (!platform) return null;
-  if (platform === "deepseek") {
-    return isDeepSeekAnthropicBaseURL(baseURL) ? "anthropic" : "openai";
-  }
-  if (
-    platform === "openai" ||
-    platform === "qwen" ||
-    platform === "glm" ||
-    platform === "other"
-  ) {
-    return "openai";
-  }
-  if (
-    platform === "anthropic" ||
-    platform === "gemini" ||
-    platform === "antigravity" ||
-    platform === "sora"
-  ) {
-    return platform;
-  }
-  return null;
 };
 
 const getRoutingSearchTargetPlatform = (key: string): GroupPlatform | '' => {

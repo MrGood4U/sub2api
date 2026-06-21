@@ -35,6 +35,7 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 		ml.Currency = currency
 		if pt == payment.TypeNowPayments {
 			ml.Networks = s.pcAggregateNOWPaymentsNetworks(insts)
+			ml.FiatCurrencies = s.pcAggregateNOWPaymentsFiatCurrencies(insts)
 		}
 		resp.Methods[ml.PaymentType] = ml
 	}
@@ -100,6 +101,7 @@ func (s *PaymentConfigService) GetMethodLimits(ctx context.Context, types []stri
 		ml.Currency = currency
 		if pt == payment.TypeNowPayments {
 			ml.Networks = s.pcAggregateNOWPaymentsNetworks(matching)
+			ml.FiatCurrencies = s.pcAggregateNOWPaymentsFiatCurrencies(matching)
 		}
 		result = append(result, ml)
 	}
@@ -267,6 +269,33 @@ func (s *PaymentConfigService) pcAggregateNOWPaymentsNetworks(instances []*dbent
 		}
 	}
 	return networks
+}
+
+func (s *PaymentConfigService) pcAggregateNOWPaymentsFiatCurrencies(instances []*dbent.PaymentProviderInstance) []string {
+	seen := make(map[string]bool)
+	var fiatCurrencies []string
+	for _, inst := range instances {
+		cfg := map[string]string{}
+		if s != nil {
+			decrypted, err := s.decryptConfig(inst.Config)
+			if err == nil && decrypted != nil {
+				cfg = decrypted
+			}
+		}
+		raw := strings.TrimSpace(cfg["fiatCurrency"])
+		if raw == "" {
+			continue
+		}
+		for _, token := range strings.Split(raw, ",") {
+			currency := strings.ToUpper(strings.TrimSpace(token))
+			if currency == "" || seen[currency] {
+				continue
+			}
+			seen[currency] = true
+			fiatCurrencies = append(fiatCurrencies, currency)
+		}
+	}
+	return fiatCurrencies
 }
 
 // pcAggregateMethodLimits computes the UNION (least restrictive) of limits

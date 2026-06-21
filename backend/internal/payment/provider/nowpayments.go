@@ -28,7 +28,7 @@ const (
 	nowpaymentsWebhookTolerance = 5 * time.Minute
 
 	nowpaymentsDefaultPayCurrency  = "usdttrc20"
-	nowpaymentsDefaultFiatCurrency = "CNY"
+	nowpaymentsDefaultFiatCurrency = "USD"
 
 	// Payment statuses from NOWPayments API.
 	nowpaymentsStatusWaiting       = "waiting"
@@ -70,7 +70,7 @@ type NOWPayments struct {
 // NewNOWPayments creates a new NOWPayments provider instance.
 // Required config keys: apiKey, ipnSecret
 // Optional config keys: apiBase (default: https://api.nowpayments.io/v1),
-// payCurrency (default: usdttrc20), fiatCurrency (default: CNY)
+// payCurrency (default: usdttrc20), fiatCurrency (default: USD)
 func NewNOWPayments(instanceID string, config map[string]string) (*NOWPayments, error) {
 	for _, k := range []string{"apiKey", "ipnSecret"} {
 		if strings.TrimSpace(config[k]) == "" {
@@ -164,10 +164,7 @@ func (n *NOWPayments) payCurrency() string {
 }
 
 func (n *NOWPayments) fiatCurrency() string {
-	if n == nil {
-		return nowpaymentsDefaultFiatCurrency
-	}
-	return normalizeNOWPaymentsFiatCurrency(n.config["fiatCurrency"])
+	return nowpaymentsDefaultFiatCurrency
 }
 
 // availablePayCurrencies returns the set of pay_currency values configured
@@ -190,6 +187,27 @@ func (n *NOWPayments) availablePayCurrencies() []string {
 	}
 	if len(out) == 0 {
 		return []string{nowpaymentsDefaultPayCurrency}
+	}
+	return out
+}
+
+func (n *NOWPayments) availableFiatCurrencies() []string {
+	raw := strings.TrimSpace(n.config["fiatCurrency"])
+	if raw == "" {
+		return []string{nowpaymentsDefaultFiatCurrency}
+	}
+	seen := make(map[string]bool)
+	var out []string
+	for _, token := range strings.Split(raw, ",") {
+		cur := normalizeNOWPaymentsFiatCurrency(token)
+		if cur == "" || seen[cur] {
+			continue
+		}
+		seen[cur] = true
+		out = append(out, cur)
+	}
+	if len(out) == 0 {
+		return []string{nowpaymentsDefaultFiatCurrency}
 	}
 	return out
 }
@@ -291,7 +309,7 @@ func (n *NOWPayments) CreatePayment(ctx context.Context, req payment.CreatePayme
 
 // nowpaymentsQueryResponse is the JSON returned by GET /v1/payment/{id}.
 type nowpaymentsQueryResponse struct {
-	PaymentID     string          `json:"payment_id"`
+	PaymentID     json.Number     `json:"payment_id"`
 	PaymentStatus string          `json:"payment_status"`
 	PayAddress    string          `json:"pay_address"`
 	PayAmount     decimal.Decimal `json:"pay_amount"`
@@ -313,7 +331,7 @@ func (n *NOWPayments) QueryOrder(ctx context.Context, tradeNo string) (*payment.
 
 	amount, _ := resp.PriceAmount.Float64()
 	return &payment.QueryOrderResponse{
-		TradeNo: resp.PaymentID,
+		TradeNo: resp.PaymentID.String(),
 		Status:  nowpaymentsProviderStatus(resp.PaymentStatus),
 		Amount:  amount,
 		Metadata: map[string]string{

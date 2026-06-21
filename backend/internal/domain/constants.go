@@ -34,8 +34,9 @@ func IsOpenAICompatiblePlatform(platform string) bool {
 	switch platform {
 	case PlatformOpenAI, PlatformSora, PlatformDeepSeek, PlatformQwen, PlatformGLM, PlatformOther:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // Account type constants

@@ -220,6 +220,29 @@ func TestPcAggregateMethodCurrency(t *testing.T) {
 	currency, ok = svc.pcAggregateMethodCurrency([]*dbent.PaymentProviderInstance{easypay})
 	require.True(t, ok)
 	require.Equal(t, payment.DefaultPaymentCurrency, currency)
+
+	nowpayments := makeInstance(4, payment.TypeNowPayments, payment.TypeNowPayments, "")
+	nowpayments.Config = `{"fiatCurrency":"usd","payCurrency":"usdttrc20"}`
+	currency, ok = svc.pcAggregateMethodCurrency([]*dbent.PaymentProviderInstance{nowpayments})
+	require.True(t, ok)
+	require.Equal(t, "USD", currency)
+}
+
+func TestPcAggregateNOWPaymentsOptions(t *testing.T) {
+	t.Parallel()
+
+	svc := &PaymentConfigService{}
+	nowpayments := makeInstance(4, payment.TypeNowPayments, payment.TypeNowPayments, "")
+	nowpayments.Config = `{"fiatCurrency":"USD,EUR,JPY","payCurrency":"usdttrc20,usdterc20,usdtbsc"}`
+
+	require.Equal(t,
+		[]string{"usdttrc20", "usdterc20", "usdtbsc"},
+		svc.pcAggregateNOWPaymentsNetworks([]*dbent.PaymentProviderInstance{nowpayments}),
+	)
+	require.Equal(t,
+		[]string{"USD", "EUR", "JPY"},
+		svc.pcAggregateNOWPaymentsFiatCurrencies([]*dbent.PaymentProviderInstance{nowpayments}),
+	)
 }
 
 func TestGetAvailableMethodLimitsOmitsMixedCurrencyMethod(t *testing.T) {

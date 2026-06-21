@@ -53,12 +53,12 @@
 
       <template #cell-pay_amount="{ value, row }">
         <div class="text-sm">
-          <span class="font-medium text-gray-900 dark:text-white">¥{{ value.toFixed(2) }}</span>
+          <span class="font-medium text-gray-900 dark:text-white">{{ formatUsdAmount(value) }}</span>
           <span v-if="row.fee_rate > 0" class="ml-1 text-xs text-gray-400" :title="t('payment.orders.fee') + ': ' + row.fee_rate + '%'">
             ({{ row.fee_rate }}%)
           </span>
           <div v-if="row.amount !== row.pay_amount" class="text-xs text-gray-500">
-            {{ t('payment.orders.creditedAmount') }}: {{ row.order_type === 'balance' ? '$' : '¥' }}{{ row.amount.toFixed(2) }}
+            {{ t('payment.orders.creditedAmount') }}: {{ formatUsdAmount(row.amount) }}
           </div>
         </div>
       </template>
@@ -143,6 +143,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { statusBadgeClass, canRefund, formatOrderDateTime } from '@/components/payment/orderUtils'
+import { formatPaymentAmount } from '@/components/payment/currency'
 
 const { t } = useI18n()
 
@@ -181,6 +182,10 @@ function emitFiltersChanged() {
     payment_type: filters.payment_type || undefined,
     order_type: filters.order_type || undefined,
   })
+}
+
+function formatUsdAmount(value: number): string {
+  return formatPaymentAmount(value, 'USD')
 }
 
 const columns = computed<Column[]>(() => [

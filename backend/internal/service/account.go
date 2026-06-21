@@ -1041,17 +1041,53 @@ func (a *Account) IsInterceptWarmupEnabled() bool {
 }
 
 func IsOpenAICompatiblePlatform(platform string) bool {
-	switch strings.ToLower(strings.TrimSpace(platform)) {
-	case PlatformOpenAI, PlatformSora, PlatformDeepSeek, PlatformQwen, PlatformGLM, PlatformOther:
-		return true
-	default:
-		return false
-	}
+	_, ok := accountPlatformCompatibilitySpecs[strings.ToLower(strings.TrimSpace(platform))]
+	return ok
 }
 
-func isDeepSeekAnthropicBaseURL(baseURL string) bool {
+type accountPlatformCompatibilitySpec struct {
+	GatewayPlatform        string
+	DefaultBaseURL         string
+	SupportsAnthropicProxy bool
+}
+
+var accountPlatformCompatibilitySpecs = map[string]accountPlatformCompatibilitySpec{
+	PlatformOpenAI: {
+		GatewayPlatform: PlatformOpenAI,
+		DefaultBaseURL:  "https://api.openai.com",
+	},
+	PlatformSora: {
+		GatewayPlatform: PlatformOpenAI,
+		DefaultBaseURL:  "https://api.openai.com",
+	},
+	PlatformDeepSeek: {
+		GatewayPlatform:        PlatformOpenAI,
+		DefaultBaseURL:         "https://api.deepseek.com",
+		SupportsAnthropicProxy: true,
+	},
+	PlatformQwen: {
+		GatewayPlatform: PlatformOpenAI,
+		DefaultBaseURL:  "https://dashscope.aliyuncs.com/compatible-mode",
+	},
+	PlatformGLM: {
+		GatewayPlatform:        PlatformOpenAI,
+		DefaultBaseURL:         "https://open.bigmodel.cn/api/paas",
+		SupportsAnthropicProxy: true,
+	},
+	PlatformOther: {
+		GatewayPlatform: PlatformOpenAI,
+		DefaultBaseURL:  "https://api.openai.com",
+	},
+}
+
+func isAnthropicCompatibleVendorBaseURL(baseURL string) bool {
 	baseURL = strings.ToLower(strings.TrimRight(strings.TrimSpace(baseURL), "/"))
 	return strings.HasSuffix(baseURL, "/anthropic")
+}
+
+func getAccountPlatformCompatibilitySpec(platform string) (accountPlatformCompatibilitySpec, bool) {
+	spec, ok := accountPlatformCompatibilitySpecs[strings.ToLower(strings.TrimSpace(platform))]
+	return spec, ok
 }
 
 func resolveGatewayPlatformForAccount(account *Account) string {
@@ -1061,24 +1097,38 @@ func resolveGatewayPlatformForAccount(account *Account) string {
 	switch strings.ToLower(strings.TrimSpace(account.Platform)) {
 	case PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformSora:
 		return account.Platform
-	case PlatformOpenAI, PlatformQwen, PlatformGLM, PlatformOther:
-		return PlatformOpenAI
-	case PlatformDeepSeek:
-		if account.Type == AccountTypeAPIKey && isDeepSeekAnthropicBaseURL(account.GetCredential("base_url")) {
-			return PlatformAnthropic
-		}
-		return PlatformOpenAI
 	default:
+		if spec, ok := getAccountPlatformCompatibilitySpec(account.Platform); ok {
+			if spec.SupportsAnthropicProxy && account.Type == AccountTypeAPIKey && isAnthropicCompatibleVendorBaseURL(account.GetCredential("base_url")) {
+				return PlatformAnthropic
+			}
+			return spec.GatewayPlatform
+		}
 		return account.Platform
 	}
 }
 
 func CompatibleAccountPlatformsForGatewayPlatform(platform string) []string {
-	switch strings.ToLower(strings.TrimSpace(platform)) {
+	normalizedPlatform := strings.ToLower(strings.TrimSpace(platform))
+	switch normalizedPlatform {
 	case PlatformOpenAI:
-		return []string{PlatformOpenAI, PlatformDeepSeek, PlatformQwen, PlatformGLM, PlatformOther}
+		platforms := make([]string, 0, len(accountPlatformCompatibilitySpecs))
+		for accountPlatform, spec := range accountPlatformCompatibilitySpecs {
+			if spec.GatewayPlatform == PlatformOpenAI {
+				platforms = append(platforms, accountPlatform)
+			}
+		}
+		sort.Strings(platforms)
+		return platforms
 	case PlatformAnthropic:
-		return []string{PlatformAnthropic, PlatformDeepSeek}
+		platforms := []string{PlatformAnthropic}
+		for accountPlatform, spec := range accountPlatformCompatibilitySpecs {
+			if spec.SupportsAnthropicProxy {
+				platforms = append(platforms, accountPlatform)
+			}
+		}
+		sort.Strings(platforms)
+		return platforms
 	default:
 		return []string{platform}
 	}
@@ -1149,16 +1199,10 @@ func (a *Account) GetOpenAIBaseURL() string {
 			return baseURL
 		}
 	}
-	switch a.Platform {
-	case PlatformDeepSeek:
-		return "https://api.deepseek.com"
-	case PlatformQwen:
-		return "https://dashscope.aliyuncs.com/compatible-mode"
-	case PlatformGLM:
-		return "https://open.bigmodel.cn/api/paas"
-	default:
-		return "https://api.openai.com"
+	if spec, ok := getAccountPlatformCompatibilitySpec(a.Platform); ok && spec.DefaultBaseURL != "" {
+		return spec.DefaultBaseURL
 	}
+	return "https://api.openai.com"
 }
 
 func (a *Account) SupportsOpenAIResponsesAPI() bool {

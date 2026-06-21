@@ -24,6 +24,24 @@
           <span class="flex flex-col items-start leading-none">
             <span class="text-base font-semibold">{{ t(`payment.methods.${method.type}`) }}</span>
             <span
+              v-if="method.currency"
+              class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
+            >
+              {{ t('payment.currencyLabel', { currency: method.currency }) }}
+            </span>
+            <span
+              v-if="method.fiat_label"
+              class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
+            >
+              {{ method.fiat_label }}
+            </span>
+            <span
+              v-if="method.network_label"
+              class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
+            >
+              {{ t('payment.networkLabel', { network: method.network_label }) }}
+            </span>
+            <span
               v-if="method.fee_rate > 0"
               class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
             >
@@ -50,6 +68,9 @@ export interface PaymentMethodOption {
   type: string
   fee_rate: number
   available: boolean
+  currency?: string
+  fiat_label?: string
+  network_label?: string
 }
 
 const props = defineProps<{

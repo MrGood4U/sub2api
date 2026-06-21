@@ -30,7 +30,7 @@
       </label>
       <div class="relative">
         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-500">
-          $
+          {{ currencyPrefix }}
         </span>
         <input
           type="text"
@@ -48,16 +48,21 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { paymentCurrencyFractionDigits, paymentCurrencySymbol } from './currency'
 
 const props = withDefaults(defineProps<{
   amounts?: number[]
   modelValue: number | null
   min?: number
   max?: number
+  currency?: string
+  locale?: string
 }>(), {
   amounts: () => [10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
   min: 0,
   max: 0,
+  currency: 'USD',
+  locale: '',
 })
 
 const emit = defineEmits<{
@@ -73,14 +78,15 @@ const filteredAmounts = computed(() =>
   props.amounts.filter((a) => (props.min <= 0 || a >= props.min) && (props.max <= 0 || a <= props.max))
 )
 
+const fractionDigits = computed(() => paymentCurrencyFractionDigits(props.currency))
+const currencyPrefix = computed(() => paymentCurrencySymbol(props.currency, props.locale))
+
 const placeholderText = computed(() => {
   if (props.min > 0 && props.max > 0) return `${props.min} - ${props.max}`
   if (props.min > 0) return `≥ ${props.min}`
   if (props.max > 0) return `≤ ${props.max}`
   return t('payment.enterAmount')
 })
-
-const AMOUNT_PATTERN = /^\d*(\.\d{0,2})?$/
 
 function selectAmount(amt: number) {
   customText.value = String(amt)
@@ -89,7 +95,9 @@ function selectAmount(amt: number) {
 
 function handleInput(e: Event) {
   const val = (e.target as HTMLInputElement).value
-  if (!AMOUNT_PATTERN.test(val)) return
+  const amountPattern = new RegExp(`^\\d*(\\.\\d{0,${fractionDigits.value}})?$`)
+  if (fractionDigits.value === 0 && val.includes('.')) return
+  if (!amountPattern.test(val)) return
   customText.value = val
   if (val === '') {
     emit('update:modelValue', null)

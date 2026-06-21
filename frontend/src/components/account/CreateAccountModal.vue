@@ -183,7 +183,7 @@
       </div>
 
       <!-- Account Type Selection (DeepSeek/Qwen/GLM) - API Key only -->
-      <div v-if="form.platform === 'deepseek' || form.platform === 'qwen' || form.platform === 'glm'">
+      <div v-if="isAPIKeyOnlyPlatform(form.platform)">
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
           {{ t('admin.accounts.cnPlatformApiKeyOnly') }}
         </p>
@@ -1056,19 +1056,7 @@
             type="text"
             class="input"
             data-testid="account-base-url-input"
-            :placeholder="
-              form.platform === 'openai'
-                ? 'https://api.openai.com'
-                : form.platform === 'gemini'
-                  ? 'https://generativelanguage.googleapis.com'
-                  : form.platform === 'deepseek'
-                    ? 'https://api.deepseek.com'
-                    : form.platform === 'qwen'
-                      ? 'https://dashscope.aliyuncs.com/compatible-mode'
-                      : form.platform === 'glm'
-                        ? 'https://open.bigmodel.cn/api/paas'
-                        : 'https://api.anthropic.com'
-            "
+            :placeholder="resolveDefaultAccountBaseURL(form.platform)"
           />
           <p class="input-hint">{{ baseUrlHint }}</p>
         </div>
@@ -3301,6 +3289,7 @@ import {
   type OpenAIWSMode
 } from '@/utils/openaiWsMode'
 import {
+  isAPIKeyOnlyPlatform,
   isAnthropicCompatiblePlatform,
   isOpenAICompatiblePlatform,
   resolveCompatibleGroupPlatform,
@@ -3764,7 +3753,7 @@ const form = reactive({
 
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {
-  if (form.platform === 'deepseek' || form.platform === 'qwen' || form.platform === 'glm') {
+  if (isAPIKeyOnlyPlatform(form.platform)) {
     return false
   }
   // Antigravity upstream 类型不需要 OAuth 流程
@@ -3842,7 +3831,7 @@ watch(
       return
     }
     // CN platforms (DeepSeek/Qwen/GLM) only support apikey
-    if (form.platform === 'deepseek' || form.platform === 'qwen' || form.platform === 'glm') {
+    if (isAPIKeyOnlyPlatform(form.platform)) {
       form.type = 'apikey'
       return
     }
@@ -3880,7 +3869,7 @@ watch(
       antigravityWhitelistModels.value = []
       accountCategory.value = 'oauth-based'
       antigravityAccountType.value = 'oauth'
-    } else if (newPlatform === 'deepseek' || newPlatform === 'qwen' || newPlatform === 'glm') {
+    } else if (isAPIKeyOnlyPlatform(newPlatform)) {
       accountCategory.value = 'apikey'
     } else {
       allowOverages.value = false

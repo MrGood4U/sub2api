@@ -111,7 +111,7 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 func paymentAmountToleranceForCurrency(currency string) float64 {
 	minorUnit := payment.CurrencyMinorUnit(currency)
 	if minorUnit <= 2 {
-		return amountToleranceCNY
+		return amountToleranceUSD
 	}
 	return math.Pow10(-minorUnit) / 2
 }

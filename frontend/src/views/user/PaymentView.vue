@@ -38,7 +38,8 @@
             <div class="card p-5">
               <p class="text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('payment.rechargeAccount') }}</p>
               <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
-              <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ user?.balance?.toFixed(2) || '0.00' }}</p>
+              <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ formatPaymentAmount(user?.balance || 0, 'USD', localeCode) }}</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.balanceUnitHint') }}</p>
             </div>
             <div v-if="enabledMethods.length === 0" class="card py-16 text-center">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
@@ -48,8 +49,10 @@
               <AmountInput
                 v-model="amount"
                 :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
-                :min="globalMinAmount"
-                :max="globalMaxAmount"
+                :min="selectedMinAmount"
+                :max="selectedMaxAmount"
+                currency="USD"
+                :locale="localeCode"
               />
               <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
             </div>
@@ -59,6 +62,30 @@
                 :selected="selectedMethod"
                 @select="onMethodSelect($event)"
               />
+            </div>
+            <div v-if="showFiatCurrencySelector" class="card p-6">
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('payment.fiatCurrency') }}
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="currency in availableFiatCurrencies"
+                  :key="currency"
+                  type="button"
+                  :class="[
+                    'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
+                    selectedFiatCurrency === currency
+                      ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300',
+                  ]"
+                  @click="selectedFiatCurrency = currency"
+                >
+                  {{ currency }}
+                </button>
+              </div>
+              <p v-if="selectedFiatEstimateText" class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                {{ selectedFiatEstimateText }}
+              </p>
             </div>
             <!-- Network selector for NOWPayments -->
             <div v-if="showNetworkSelector" class="card p-6">
@@ -85,23 +112,45 @@
             <div v-if="validAmount > 0" class="card p-6">
               <div class="space-y-2 text-sm">
                 <div class="flex justify-between">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmount') }}</span>
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmountWithCurrency', { currency: selectedCurrency }) }}</span>
                   <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(validAmount) }}</span>
+                </div>
+                <div v-if="selectedMethodLabel" class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentMethod') }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ selectedMethodLabel }}</span>
+                </div>
+                <div v-if="selectedFiatSummaryLabel" class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fiatCurrency') }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ selectedFiatSummaryLabel }}</span>
+                </div>
+                <div v-if="selectedFiatEstimateSummary" class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.estimatedFiatAmount') }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ selectedFiatEstimateSummary }}</span>
+                </div>
+                <div v-if="selectedNetworkSummaryLabel" class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.network') }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ selectedNetworkSummaryLabel }}</span>
                 </div>
                 <div v-if="feeRate > 0" class="flex justify-between">
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
                   <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</span>
                 </div>
-                <div v-if="feeRate > 0" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
-                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
+                <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPayWithCurrency', { currency: selectedCurrency }) }}</span>
                   <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
                 </div>
-                <div v-if="balanceRechargeMultiplier !== 1" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': feeRate <= 0 }">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
-                  <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
+                <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalanceUsd') }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ formatPaymentAmount(creditedAmount, 'USD', localeCode) }}</span>
                 </div>
-                <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
-                  {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                <p class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
+                  {{ t('payment.paymentCurrencyHint', { currency: selectedCurrency }) }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('payment.creditedBalanceHint') }}
+                </p>
+                <p v-if="selectedMethod === 'nowpayments'" class="text-xs text-gray-500 dark:text-dark-400">
+                  {{ t('payment.cryptoAmountAfterCreateHint') }}
                 </p>
               </div>
             </div>
@@ -129,9 +178,9 @@
                 <!-- Price -->
                 <div class="flex items-baseline gap-2">
                   <span v-if="selectedPlan.original_price" class="text-sm text-gray-400 line-through dark:text-gray-500">
-                    {{ formatSelectedPaymentAmount(selectedPlan.original_price) }}
+                    {{ formatUsdAmount(selectedPlan.original_price) }}
                   </span>
-                  <span :class="['text-3xl font-bold', planTextClass]">{{ formatSelectedPaymentAmount(selectedPlan.price) }}</span>
+                  <span :class="['text-3xl font-bold', planTextClass]">{{ formatUsdAmount(selectedPlan.price) }}</span>
                   <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ planValiditySuffix }}</span>
                 </div>
                 <!-- Description -->
@@ -171,6 +220,27 @@
                   @select="onMethodSelect($event)"
                 />
               </div>
+              <div v-if="showFiatCurrencySelector" class="card p-6">
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('payment.fiatCurrency') }}
+                </label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="currency in availableFiatCurrencies"
+                    :key="currency"
+                    type="button"
+                    :class="[
+                      'rounded-lg border px-4 py-2 text-sm font-medium transition-all',
+                      selectedFiatCurrency === currency
+                        ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300',
+                    ]"
+                    @click="selectedFiatCurrency = currency"
+                  >
+                    {{ currency }}
+                  </button>
+                </div>
+              </div>
               <!-- Network selector for NOWPayments -->
               <div v-if="showNetworkSelector" class="card p-6">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -197,15 +267,15 @@
                 <div class="space-y-2 text-sm">
                   <div class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">{{ t('payment.amountLabel') }}</span>
-                    <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(selectedPlan.price) }}</span>
+                    <span class="text-gray-900 dark:text-white">{{ formatUsdAmount(selectedPlan.price) }}</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
-                    <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(subFeeAmount) }}</span>
+                    <span class="text-gray-900 dark:text-white">{{ formatUsdAmount(subFeeAmount) }}</span>
                   </div>
                   <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
                     <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
-                    <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
+                    <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatUsdAmount(subTotalAmount) }}</span>
                   </div>
                 </div>
               </div>
@@ -214,7 +284,7 @@
                   <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                   {{ t('common.processing') }}
                 </span>
-                <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(feeRate > 0 ? subTotalAmount : selectedPlan.price) }}</span>
+                <span v-else>{{ t('payment.createOrder') }} {{ formatUsdAmount(feeRate > 0 ? subTotalAmount : selectedPlan.price) }}</span>
               </button>
               <button class="btn btn-secondary w-full" @click="selectedPlan = null">{{ t('common.cancel') }}</button>
             </template>
@@ -322,7 +392,7 @@ import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, pl
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { formatPaymentAmount } from '@/components/payment/currency'
 import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
@@ -351,6 +421,7 @@ const errorHintMessage = ref('')
 const activeTab = ref<'recharge' | 'subscription'>('recharge')
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
+const selectedFiatCurrency = ref('')
 const selectedNetwork = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
@@ -581,7 +652,10 @@ const globalMaxAmount = computed(() => {
 
 // Selected method's limits (for validation and error messages)
 const selectedLimit = computed(() => visibleMethods.value[selectedMethod.value])
-const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
+const selectedMinAmount = computed(() => selectedLimit.value?.single_min ?? globalMinAmount.value)
+const selectedMaxAmount = computed(() => selectedLimit.value?.single_max ?? globalMaxAmount.value)
+const availableFiatCurrencies = computed(() => selectedLimit.value?.fiat_currencies || [])
+const selectedCurrency = computed(() => 'USD')
 const localeCode = computed(() => {
   const raw = i18n.locale as unknown
   if (typeof raw === 'string') return raw
@@ -592,6 +666,7 @@ const localeCode = computed(() => {
 })
 
 const availableNetworks = computed(() => selectedLimit.value?.networks || [])
+const showFiatCurrencySelector = computed(() => selectedMethod.value === 'nowpayments' && availableFiatCurrencies.value.length > 1)
 const showNetworkSelector = computed(() => selectedMethod.value === 'nowpayments' && availableNetworks.value.length > 1)
 
 const NETWORK_LABELS: Record<string, string> = {
@@ -610,11 +685,58 @@ function formatSelectedPaymentAmount(value: number): string {
   return formatPaymentAmount(value, selectedCurrency.value, localeCode.value)
 }
 
+function formatUsdAmount(value: number): string {
+  return formatPaymentAmount(value, 'USD', localeCode.value)
+}
+
+const ESTIMATED_FIAT_PER_USD: Record<string, number> = {
+  USD: 1,
+  EUR: 0.92,
+  JPY: 157,
+  CNY: 7.18,
+  HKD: 7.8,
+  SGD: 1.35,
+  AUD: 1.52,
+  CAD: 1.37,
+  GBP: 0.79,
+  KRW: 1365,
+  NZD: 1.66,
+}
+
+const selectedFiatEstimateAmount = computed(() => {
+  const fiat = selectedFiatCurrency.value || selectedFiatSummaryLabel.value
+  const rate = ESTIMATED_FIAT_PER_USD[fiat]
+  if (!fiat || !rate || validAmount.value <= 0) return null
+  return Math.round((validAmount.value * rate) * 100) / 100
+})
+
+const selectedFiatEstimateSummary = computed(() => {
+  const fiat = selectedFiatCurrency.value || selectedFiatSummaryLabel.value
+  if (!fiat || selectedFiatEstimateAmount.value === null) return ''
+  return formatPaymentAmount(selectedFiatEstimateAmount.value, fiat, localeCode.value)
+})
+
+const selectedFiatEstimateText = computed(() => {
+  if (!selectedFiatSummaryLabel.value) return ''
+  if (!selectedFiatEstimateSummary.value || validAmount.value <= 0) {
+    return t('payment.estimatedFiatHintEmpty', { currency: selectedFiatSummaryLabel.value })
+  }
+  return t('payment.estimatedFiatHint', {
+    usd: formatUsdAmount(validAmount.value),
+    amount: selectedFiatEstimateSummary.value,
+    currency: selectedFiatSummaryLabel.value,
+  })
+})
+
 const methodOptions = computed<PaymentMethodOption[]>(() =>
   enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
+    const fiatCurrencies = ml?.fiat_currencies || []
     return {
       type,
+      currency: 'USD',
+      fiat_label: type === 'nowpayments' ? nowpaymentsMethodFiatLabel(fiatCurrencies) : undefined,
+      network_label: type === 'nowpayments' ? nowpaymentsMethodNetworkLabel(ml?.networks || []) : undefined,
       fee_rate: ml?.fee_rate ?? 0,
       available: ml?.available !== false && amountFitsMethod(validAmount.value, type),
     }
@@ -652,6 +774,7 @@ const canSubmit = computed(() =>
   validAmount.value > 0
     && amountFitsMethod(validAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
+    && (!showFiatCurrencySelector.value || selectedFiatCurrency.value !== '')
     && (!showNetworkSelector.value || selectedNetwork.value !== '')
 )
 
@@ -660,13 +783,46 @@ const subMethodOptions = computed<PaymentMethodOption[]>(() => {
   const planPrice = selectedPlan.value?.price ?? 0
   return enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
+    const fiatCurrencies = ml?.fiat_currencies || []
     return {
       type,
+      currency: 'USD',
+      fiat_label: type === 'nowpayments' ? nowpaymentsMethodFiatLabel(fiatCurrencies) : undefined,
+      network_label: type === 'nowpayments' ? nowpaymentsMethodNetworkLabel(ml?.networks || []) : undefined,
       fee_rate: ml?.fee_rate ?? 0,
       available: ml?.available !== false && amountFitsMethod(planPrice, type),
     }
   })
 })
+
+const selectedMethodLabel = computed(() => {
+  if (!selectedMethod.value) return ''
+  return t(`payment.methods.${selectedMethod.value}`)
+})
+
+const selectedFiatSummaryLabel = computed(() => {
+  if (selectedMethod.value !== 'nowpayments') return ''
+  if (selectedFiatCurrency.value) return selectedFiatCurrency.value
+  return availableFiatCurrencies.value[0] || 'USD'
+})
+
+const selectedNetworkSummaryLabel = computed(() => {
+  if (selectedMethod.value !== 'nowpayments') return ''
+  if (selectedNetwork.value) return networkLabel(selectedNetwork.value)
+  return nowpaymentsMethodNetworkLabel(selectedLimit.value?.networks || [])
+})
+
+function nowpaymentsMethodFiatLabel(fiatCurrencies: string[]): string {
+  if (fiatCurrencies.length === 0) return ''
+  if (fiatCurrencies.length === 1) return t('payment.estimateCurrencyLabel', { currency: fiatCurrencies[0] })
+  return t('payment.fiatCurrenciesAvailable', { count: fiatCurrencies.length })
+}
+
+function nowpaymentsMethodNetworkLabel(networks: string[]): string {
+  if (networks.length === 0) return ''
+  if (networks.length === 1) return networkLabel(networks[0])
+  return t('payment.networksAvailable', { count: networks.length })
+}
 
 const subFeeAmount = computed(() => {
   const price = selectedPlan.value?.price ?? 0
@@ -684,6 +840,7 @@ const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
     && amountFitsMethod(selectedPlan.value.price, selectedMethod.value)
     && selectedLimit.value?.available !== false
+    && (!showFiatCurrencySelector.value || selectedFiatCurrency.value !== '')
     && (!showNetworkSelector.value || selectedNetwork.value !== '')
 )
 
@@ -746,7 +903,15 @@ function closeRenewalModal() {
 function onMethodSelect(method: string) {
   selectedMethod.value = method
   if (method !== 'nowpayments') {
+    selectedFiatCurrency.value = ''
     selectedNetwork.value = ''
+    return
+  }
+  if (!availableFiatCurrencies.value.includes(selectedFiatCurrency.value)) {
+    selectedFiatCurrency.value = availableFiatCurrencies.value[0] || 'USD'
+  }
+  if (!availableNetworks.value.includes(selectedNetwork.value)) {
+    selectedNetwork.value = availableNetworks.value[0] || ''
   }
 }
 
@@ -1108,6 +1273,12 @@ onMounted(async () => {
         return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
       })
       selectedMethod.value = sorted[0]
+      if (selectedMethod.value === 'nowpayments') {
+        selectedFiatCurrency.value = visibleMethods.value[selectedMethod.value]?.fiat_currencies?.[0]
+          || 'USD'
+          || ''
+        selectedNetwork.value = visibleMethods.value[selectedMethod.value]?.networks?.[0] || ''
+      }
     }
     if (typeof window !== 'undefined') {
       if (hasWechatResumeQuery(route.query)) {
@@ -1159,4 +1330,18 @@ onMounted(async () => {
   // Fetch active subscriptions (uses cache, non-blocking)
   subscriptionStore.fetchActiveSubscriptions().catch(() => {})
 })
+
+watch(selectedMethod, (method) => {
+  if (method !== 'nowpayments') {
+    selectedFiatCurrency.value = ''
+    selectedNetwork.value = ''
+    return
+  }
+  if (!availableFiatCurrencies.value.includes(selectedFiatCurrency.value)) {
+    selectedFiatCurrency.value = availableFiatCurrencies.value[0] || 'USD'
+  }
+  if (!availableNetworks.value.includes(selectedNetwork.value)) {
+    selectedNetwork.value = availableNetworks.value[0] || ''
+  }
+}, { immediate: true })
 </script>
