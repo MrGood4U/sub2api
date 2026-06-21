@@ -309,7 +309,7 @@ func (n *NOWPayments) CreatePayment(ctx context.Context, req payment.CreatePayme
 
 // nowpaymentsQueryResponse is the JSON returned by GET /v1/payment/{id}.
 type nowpaymentsQueryResponse struct {
-	PaymentID     string          `json:"payment_id"`
+	PaymentID     json.Number     `json:"payment_id"`
 	PaymentStatus string          `json:"payment_status"`
 	PayAddress    string          `json:"pay_address"`
 	PayAmount     decimal.Decimal `json:"pay_amount"`
@@ -331,7 +331,7 @@ func (n *NOWPayments) QueryOrder(ctx context.Context, tradeNo string) (*payment.
 
 	amount, _ := resp.PriceAmount.Float64()
 	return &payment.QueryOrderResponse{
-		TradeNo: resp.PaymentID,
+		TradeNo: resp.PaymentID.String(),
 		Status:  nowpaymentsProviderStatus(resp.PaymentStatus),
 		Amount:  amount,
 		Metadata: map[string]string{

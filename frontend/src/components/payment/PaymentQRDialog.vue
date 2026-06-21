@@ -123,6 +123,7 @@ const VERIFY_RETRY_MAX_ATTEMPTS = 6
 
 const isAlipay = computed(() => props.paymentType.includes('alipay'))
 const isWxpay = computed(() => props.paymentType.includes('wxpay'))
+const canRecoverPendingOrder = computed(() => isWxpay.value || props.paymentType.includes('nowpayments'))
 
 const dialogTitle = computed(() => {
   if (success.value) return t('payment.result.success')
@@ -211,7 +212,7 @@ async function pollStatus() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
-  if (!isWxpay.value) return order
+  if (!canRecoverPendingOrder.value) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
   const normalizedStatus = String(order.status || '').trim().toUpperCase()
