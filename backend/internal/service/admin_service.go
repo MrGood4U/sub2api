@@ -1735,7 +1735,7 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 		seen[model] = struct{}{}
 	}
 	for _, acc := range accounts {
-		if acc.Platform != platform {
+		if !accountMatchesModelsListPlatform(&acc, platform) {
 			continue
 		}
 		for model := range acc.GetModelMapping() {
@@ -1753,10 +1753,52 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 	return candidates, nil
 }
 
+func accountMatchesModelsListPlatform(acc *Account, platform string) bool {
+	if acc == nil {
+		return false
+	}
+	platform = strings.TrimSpace(platform)
+	if platform == "" {
+		return false
+	}
+	if strings.EqualFold(acc.Platform, platform) {
+		return true
+	}
+
+	switch platform {
+	case PlatformOpenAI:
+		return acc.IsOpenAI()
+	case PlatformAnthropic:
+		return acc.IsAnthropic()
+	case PlatformGemini:
+		return acc.IsGemini()
+	case PlatformAntigravity:
+		return acc.Platform == PlatformAntigravity
+	case PlatformSora:
+		return acc.Platform == PlatformSora
+	}
+	return false
+}
+
 func defaultModelsListCandidateIDs(platform string) []string {
 	switch platform {
 	case PlatformOpenAI:
 		return openai.DefaultModelIDs()
+	case PlatformDeepSeek:
+		return []string{
+			"deepseek-chat",
+			"deepseek-coder",
+			"deepseek-reasoner",
+			"deepseek-v3",
+			"deepseek-v3-0324",
+			"deepseek-r1",
+			"deepseek-r1-0528",
+			"deepseek-r1-distill-qwen-32b",
+			"deepseek-r1-distill-qwen-14b",
+			"deepseek-r1-distill-qwen-7b",
+			"deepseek-r1-distill-llama-70b",
+			"deepseek-r1-distill-llama-8b",
+		}
 	case PlatformGemini:
 		ids := make([]string, 0, len(geminicli.DefaultModels))
 		for _, model := range geminicli.DefaultModels {
