@@ -80,4 +80,15 @@ describe('GroupSelector', () => {
     expect(wrapper.text()).not.toContain('openai-group')
     expect(wrapper.text()).not.toContain('gemini-group')
   })
+
+  it('uses compatible platform filter for glm anthropic base url', () => {
+    const wrapper = mountSelector({
+      platform: 'glm',
+      compatiblePlatform: 'anthropic'
+    })
+
+    expect(wrapper.text()).toContain('anthropic-group')
+    expect(wrapper.text()).not.toContain('openai-group')
+    expect(wrapper.text()).not.toContain('gemini-group')
+  })
 })

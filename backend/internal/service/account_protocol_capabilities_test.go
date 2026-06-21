@@ -60,6 +60,17 @@ func TestSupportsOpenAIResponsesAPI(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "glm anthropic compatible host is not openai responses capable",
+			account: &Account{
+				Platform: PlatformGLM,
+				Type:     AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"base_url": "https://open.bigmodel.cn/api/paas/anthropic",
+				},
+			},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -194,6 +194,27 @@ func (n *NOWPayments) availablePayCurrencies() []string {
 	return out
 }
 
+func (n *NOWPayments) availableFiatCurrencies() []string {
+	raw := strings.TrimSpace(n.config["fiatCurrency"])
+	if raw == "" {
+		return []string{nowpaymentsDefaultFiatCurrency}
+	}
+	seen := make(map[string]bool)
+	var out []string
+	for _, token := range strings.Split(raw, ",") {
+		cur := normalizeNOWPaymentsFiatCurrency(token)
+		if cur == "" || seen[cur] {
+			continue
+		}
+		seen[cur] = true
+		out = append(out, cur)
+	}
+	if len(out) == 0 {
+		return []string{nowpaymentsDefaultFiatCurrency}
+	}
+	return out
+}
+
 // resolvePayCurrency picks the pay_currency for CreatePayment:
 // if the user selected a specific network, validate and use it;
 // otherwise fall back to the first configured currency.

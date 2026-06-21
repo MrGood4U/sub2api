@@ -10038,11 +10038,13 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		return nil
 	}
 
-	// Filter by platform if specified
+	// Filter by the gateway protocol platform, not the raw account platform.
+	// This keeps /v1/models aligned with scheduling for compatible vendors
+	// like DeepSeek/GLM anthropic-proxy accounts.
 	if platform != "" {
 		filtered := make([]Account, 0)
 		for _, acc := range accounts {
-			if acc.Platform == platform {
+			if AccountMatchesGatewayPlatform(&acc, platform) {
 				filtered = append(filtered, acc)
 			}
 		}

@@ -1,61 +1,102 @@
 import type { AccountPlatform, GroupPlatform } from '@/types'
 
-export type DeepSeekProtocol = 'openai' | 'anthropic'
+export type VendorCompatibleProtocol = 'openai' | 'anthropic'
 
-const OPENAI_COMPATIBLE_PLATFORMS = new Set<AccountPlatform>([
-  'openai',
-  'sora',
-  'deepseek',
-  'qwen',
-  'glm',
-  'other'
-])
+type AccountPlatformCompatibility = {
+  gatewayPlatform: GroupPlatform
+  defaultBaseURL?: string
+  apiKeyOnly?: boolean
+  supportsAnthropicCompatibleMode?: boolean
+}
+
+const ACCOUNT_PLATFORM_COMPATIBILITY: Partial<Record<AccountPlatform, AccountPlatformCompatibility>> = {
+  openai: {
+    gatewayPlatform: 'openai',
+    defaultBaseURL: 'https://api.openai.com'
+  },
+  sora: {
+    gatewayPlatform: 'openai',
+    defaultBaseURL: 'https://api.openai.com'
+  },
+  deepseek: {
+    gatewayPlatform: 'openai',
+    defaultBaseURL: 'https://api.deepseek.com',
+    apiKeyOnly: true,
+    supportsAnthropicCompatibleMode: true
+  },
+  qwen: {
+    gatewayPlatform: 'openai',
+    defaultBaseURL: 'https://dashscope.aliyuncs.com/compatible-mode',
+    apiKeyOnly: true
+  },
+  glm: {
+    gatewayPlatform: 'openai',
+    defaultBaseURL: 'https://open.bigmodel.cn/api/paas',
+    apiKeyOnly: true,
+    supportsAnthropicCompatibleMode: true
+  },
+  other: {
+    gatewayPlatform: 'openai',
+    defaultBaseURL: 'https://api.openai.com'
+  },
+  anthropic: {
+    gatewayPlatform: 'anthropic',
+    defaultBaseURL: 'https://api.anthropic.com'
+  },
+  gemini: {
+    gatewayPlatform: 'gemini',
+    defaultBaseURL: 'https://generativelanguage.googleapis.com'
+  },
+  antigravity: {
+    gatewayPlatform: 'antigravity'
+  }
+}
+
+const OPENAI_COMPATIBLE_PLATFORMS = new Set<AccountPlatform>(
+  Object.entries(ACCOUNT_PLATFORM_COMPATIBILITY)
+    .filter(([, config]) => config?.gatewayPlatform === 'openai')
+    .map(([platform]) => platform as AccountPlatform)
+)
+
+const getAccountPlatformCompatibility = (platform?: string | null) =>
+  (platform ? ACCOUNT_PLATFORM_COMPATIBILITY[platform as AccountPlatform] : undefined)
 
 export const isOpenAICompatiblePlatform = (platform?: string | null): platform is AccountPlatform =>
   !!platform && OPENAI_COMPATIBLE_PLATFORMS.has(platform as AccountPlatform)
 
-export const isDeepSeekAnthropicBaseURL = (baseURL?: string | null) =>
+export const isAnthropicCompatibleVendorBaseURL = (baseURL?: string | null) =>
   (baseURL || '').trim().toLowerCase().replace(/\/+$/, '').endsWith('/anthropic')
+
+export const isAPIKeyOnlyPlatform = (platform?: string | null) =>
+  getAccountPlatformCompatibility(platform)?.apiKeyOnly === true
+
+export const resolveCompatibleGroupPlatform = (
+  platform?: string | null,
+  baseURL?: string | null
+): GroupPlatform | null => {
+  const config = getAccountPlatformCompatibility(platform)
+  if (!config) return null
+  if (config.supportsAnthropicCompatibleMode) {
+    return isAnthropicCompatibleVendorBaseURL(baseURL) ? 'anthropic' : 'openai'
+  }
+  return config.gatewayPlatform
+}
 
 export const isAnthropicCompatiblePlatform = (
   platform?: string | null,
   baseURL?: string | null
 ) => resolveCompatibleGroupPlatform(platform, baseURL) === 'anthropic'
 
-export const resolveCompatibleGroupPlatform = (
-  platform?: string | null,
-  baseURL?: string | null
-): GroupPlatform | null => {
-  if (!platform) return null
-  if (platform === 'deepseek') {
-    return isDeepSeekAnthropicBaseURL(baseURL) ? 'anthropic' : 'openai'
-  }
-  if (platform === 'qwen' || platform === 'glm' || platform === 'other' || platform === 'openai') {
-    return 'openai'
-  }
-  if (platform === 'sora') {
-    return 'sora'
-  }
-  if (platform === 'anthropic' || platform === 'gemini' || platform === 'antigravity') {
-    return platform
-  }
-  return null
-}
-
 export const resolveDefaultAccountBaseURL = (
   platform?: string | null,
-  deepSeekProtocol: DeepSeekProtocol = 'openai'
+  protocol: VendorCompatibleProtocol = 'openai'
 ) => {
-  if (platform === 'deepseek') {
-    return deepSeekProtocol === 'anthropic'
-      ? 'https://api.deepseek.com/anthropic'
-      : 'https://api.deepseek.com'
+  const config = getAccountPlatformCompatibility(platform)
+  if (!config) {
+    return 'https://api.anthropic.com'
   }
-  if (platform === 'gemini') {
-    return 'https://generativelanguage.googleapis.com'
+  if (config.supportsAnthropicCompatibleMode && protocol === 'anthropic' && config.defaultBaseURL) {
+    return `${config.defaultBaseURL.replace(/\/+$/, '')}/anthropic`
   }
-  if (platform === 'openai' || platform === 'sora' || platform === 'qwen' || platform === 'glm' || platform === 'other') {
-    return 'https://api.openai.com'
-  }
-  return 'https://api.anthropic.com'
+  return config.defaultBaseURL || 'https://api.anthropic.com'
 }

@@ -49,6 +49,8 @@ export interface MethodLimit {
   fee_rate: number
   available: boolean
   networks?: string[]
+  fiat_currencies?: string[]
+  settlement_currency?: string
 }
 
 /** Response from /payment/limits API */

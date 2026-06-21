@@ -81,10 +81,23 @@ const antigravityModels = [
 
 // 智谱 GLM
 const zhipuModels = [
+  // Keep in sync with https://docs.bigmodel.cn/cn/guide/start/model-overview
+  'glm-5.1', 'glm-5', 'glm-5-turbo',
+  'glm-4.7', 'glm-4.7-flashx', 'glm-4.7-flash',
+  'glm-4.6', 'glm-4.6v', 'glm-4.6v-flash',
+  'glm-4.5', 'glm-4.5-air', 'glm-4.5-airx', 'glm-4.5-flash',
+  'glm-4-long', 'glm-4-flashx-250414', 'glm-4-flash-250414',
+  'glm-5v-turbo', 'glm-ocr',
+  'glm-4.1v-thinking-flashx', 'glm-4.1v-thinking-flash', 'glm-4v-flash',
+  'glm-image', 'glm-tts', 'glm-tts-clone', 'glm-asr-2512', 'glm-realtime', 'glm-4-voice',
+  'embedding-3', 'embedding-2',
+  'cogview-4', 'cogview-3-flash',
+  'cogvideox-3', 'cogvideox-flash',
+  'vidu-q1', 'vidu-2',
+  // Legacy aliases still accepted in existing deployments.
   'glm-4', 'glm-4v', 'glm-4-plus', 'glm-4-0520',
-  'glm-4-air', 'glm-4-airx', 'glm-4-long', 'glm-4-flash',
-  'glm-4v-plus', 'glm-4.5', 'glm-4.6',
-  'glm-3-turbo', 'glm-4-alltools',
+  'glm-4-air', 'glm-4-airx', 'glm-4-flash',
+  'glm-4v-plus', 'glm-3-turbo', 'glm-4-alltools',
   'chatglm_turbo', 'chatglm_pro', 'chatglm_std', 'chatglm_lite',
   'cogview-3', 'cogvideo'
 ]

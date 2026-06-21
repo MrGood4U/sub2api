@@ -70,4 +70,15 @@ func TestAccount_IsAnthropicAPIKeyPassthroughEnabled(t *testing.T) {
 		}
 		require.True(t, account.IsAnthropicAPIKeyPassthroughEnabled())
 	})
+
+	t.Run("GLM Anthropic-compatible API Key 默认开启", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformGLM,
+			Type:     AccountTypeAPIKey,
+			Credentials: map[string]any{
+				"base_url": "https://open.bigmodel.cn/api/paas/anthropic",
+			},
+		}
+		require.True(t, account.IsAnthropicAPIKeyPassthroughEnabled())
+	})
 }

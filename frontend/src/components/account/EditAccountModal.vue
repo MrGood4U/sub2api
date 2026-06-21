@@ -37,6 +37,12 @@
             :placeholder="
               account.platform === 'openai'
                 ? 'https://api.openai.com'
+                : account.platform === 'deepseek'
+                  ? 'https://api.deepseek.com'
+                  : account.platform === 'qwen'
+                    ? 'https://dashscope.aliyuncs.com/compatible-mode'
+                    : account.platform === 'glm'
+                      ? 'https://open.bigmodel.cn/api/paas'
                 : account.platform === 'gemini'
                   ? 'https://generativelanguage.googleapis.com'
                   : account.platform === 'antigravity'
@@ -59,6 +65,8 @@
             :placeholder="
               account.platform === 'openai'
                 ? 'sk-proj-...'
+                : account.platform === 'glm'
+                  ? 'your-bigmodel-api-key'
                 : account.platform === 'gemini'
                   ? 'AIza...'
                   : account.platform === 'antigravity'

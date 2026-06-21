@@ -370,6 +370,26 @@ func TestGatewayService_ListSchedulableAccounts_CompatibleVendorProtocols(t *tes
 					Type:     AccountTypeAPIKey,
 					Status:   StatusActive,
 				},
+				{
+					ID:       4,
+					Name:     "glm-openai",
+					Platform: PlatformGLM,
+					Type:     AccountTypeAPIKey,
+					Status:   StatusActive,
+					Credentials: map[string]any{
+						"base_url": "https://open.bigmodel.cn/api/paas",
+					},
+				},
+				{
+					ID:       5,
+					Name:     "glm-anthropic",
+					Platform: PlatformGLM,
+					Type:     AccountTypeAPIKey,
+					Status:   StatusActive,
+					Credentials: map[string]any{
+						"base_url": "https://open.bigmodel.cn/api/paas/anthropic",
+					},
+				},
 			},
 		},
 		cfg: testConfig(),
@@ -380,16 +400,20 @@ func TestGatewayService_ListSchedulableAccounts_CompatibleVendorProtocols(t *tes
 	openAIAccounts, useMixed, err := svc.listSchedulableAccounts(context.Background(), &groupID, PlatformOpenAI, false)
 	require.NoError(t, err)
 	require.False(t, useMixed)
-	require.Len(t, openAIAccounts, 1)
-	require.Equal(t, "deepseek-openai", openAIAccounts[0].Name)
+	require.Len(t, openAIAccounts, 2)
+	require.ElementsMatch(t, []string{"deepseek-openai", "glm-openai"}, []string{
+		openAIAccounts[0].Name,
+		openAIAccounts[1].Name,
+	})
 
 	anthropicAccounts, useMixed, err := svc.listSchedulableAccounts(context.Background(), &groupID, PlatformAnthropic, false)
 	require.NoError(t, err)
 	require.True(t, useMixed)
-	require.Len(t, anthropicAccounts, 2)
-	require.ElementsMatch(t, []string{"deepseek-anthropic", "anthropic-native"}, []string{
+	require.Len(t, anthropicAccounts, 3)
+	require.ElementsMatch(t, []string{"deepseek-anthropic", "glm-anthropic", "anthropic-native"}, []string{
 		anthropicAccounts[0].Name,
 		anthropicAccounts[1].Name,
+		anthropicAccounts[2].Name,
 	})
 }
 
@@ -428,6 +452,43 @@ func TestGatewayService_SelectAccountForModelWithPlatform_DeepSeekAnthropicCompa
 	require.NoError(t, err)
 	require.NotNil(t, acc)
 	require.Equal(t, "deepseek-anthropic", acc.Name)
+}
+
+func TestGatewayService_SelectAccountForModelWithPlatform_GLMAnthropicCompatible(t *testing.T) {
+	ctx := context.Background()
+	groupID := int64(10)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          1,
+				Name:        "glm-anthropic",
+				Platform:    PlatformGLM,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"base_url": "https://open.bigmodel.cn/api/paas/anthropic",
+				},
+				AccountGroups: []AccountGroup{{GroupID: groupID}},
+			},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	for i := range repo.accounts {
+		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+	}
+
+	svc := &GatewayService{
+		accountRepo: repo,
+		cache:       &mockGatewayCacheForPlatform{},
+		cfg:         testConfig(),
+	}
+
+	acc, err := svc.selectAccountForModelWithPlatform(ctx, &groupID, "", "glm-5.1", map[int64]struct{}{}, PlatformAnthropic)
+	require.NoError(t, err)
+	require.NotNil(t, acc)
+	require.Equal(t, "glm-anthropic", acc.Name)
 }
 
 // TestGatewayService_SelectAccountForModelWithPlatform_Antigravity 测试 antigravity 单平台选择
@@ -2256,6 +2317,59 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
 		require.Equal(t, int64(11), result.Account.ID)
+	})
+
+	t.Run("GLM Anthropic-compatible API key participates in anthropic load-aware selection", func(t *testing.T) {
+		groupID := int64(102)
+
+		repo := &mockAccountRepoForPlatform{
+			accounts: []Account{
+				{
+					ID:          12,
+					Name:        "glm-anthropic",
+					Platform:    PlatformGLM,
+					Type:        AccountTypeAPIKey,
+					Priority:    1,
+					Status:      StatusActive,
+					Schedulable: true,
+					Concurrency: 1,
+					Credentials: map[string]any{
+						"base_url": "https://open.bigmodel.cn/api/paas/anthropic",
+					},
+					Extra:         map[string]any{"anthropic_passthrough": true},
+					AccountGroups: []AccountGroup{{GroupID: groupID}},
+				},
+			},
+			accountsByID: map[int64]*Account{},
+		}
+		for i := range repo.accounts {
+			repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+		}
+
+		groupRepo := &mockGroupRepoForGateway{
+			groups: map[int64]*Group{
+				groupID: {
+					ID:       groupID,
+					Platform: PlatformAnthropic,
+					Status:   StatusActive,
+					Hydrated: true,
+				},
+			},
+		}
+
+		svc := &GatewayService{
+			accountRepo:        repo,
+			groupRepo:          groupRepo,
+			cache:              &mockGatewayCacheForPlatform{},
+			cfg:                testConfig(),
+			concurrencyService: NewConcurrencyService(&mockConcurrencyCache{}),
+		}
+
+		result, err := svc.SelectAccountWithLoadAwareness(ctx, &groupID, "", "glm-5.1", nil, "", int64(0))
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.NotNil(t, result.Account)
+		require.Equal(t, int64(12), result.Account.ID)
 	})
 
 	t.Run("禁用负载批量查询-降级到传统选择", func(t *testing.T) {
