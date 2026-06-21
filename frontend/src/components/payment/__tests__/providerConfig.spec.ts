@@ -20,10 +20,10 @@ describe('PROVIDER_CONFIG_FIELDS.wxpay', () => {
 })
 
 describe('PROVIDER_CONFIG_FIELDS.airwallex', () => {
-  it('adds currency config with CNY as the default', () => {
+  it('adds currency config with USD as the default', () => {
     const currency = findField('airwallex', 'currency')
 
-    expect(currency?.defaultValue).toBe('CNY')
+    expect(currency?.defaultValue).toBe('USD')
     expect(currency?.hintKey).toBe('admin.settings.payment.field_paymentCurrencyHint')
     expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
   })
@@ -42,10 +42,10 @@ describe('PROVIDER_CONFIG_FIELDS.airwallex', () => {
 })
 
 describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
-  it('adds currency config with CNY as the default', () => {
+  it('adds currency config with USD as the default', () => {
     const currency = findField('stripe', 'currency')
 
-    expect(currency?.defaultValue).toBe('CNY')
+    expect(currency?.defaultValue).toBe('USD')
     expect(currency?.hintKey).toBe('admin.settings.payment.field_paymentCurrencyHint')
     expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
   })

@@ -120,7 +120,7 @@ const paymentStore = usePaymentStore()
 
 const order = ref<PaymentOrder | null>(null)
 const loading = ref(true)
-const currency = ref('CNY')
+const currency = ref('USD')
 
 interface ReturnInfo {
   outTradeNo: string

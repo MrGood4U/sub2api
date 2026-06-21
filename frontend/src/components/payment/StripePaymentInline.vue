@@ -23,11 +23,11 @@
               </div>
               <div v-if="amount > 0" class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ orderType === 'balance' ? '$' : '¥' }}{{ amount.toFixed(2) }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ formatUsdAmount(amount) }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">¥{{ payAmount.toFixed(2) }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ formatUsdAmount(payAmount) }}</span>
               </div>
             </div>
           </div>
@@ -40,7 +40,7 @@
       <div class="card overflow-hidden">
         <div class="bg-gradient-to-br from-[#635bff] to-[#4f46e5] px-6 py-5 text-center">
           <p class="text-sm font-medium text-indigo-200">{{ t('payment.actualPay') }}</p>
-          <p class="mt-1 text-3xl font-bold text-white">¥{{ payAmount.toFixed(2) }}</p>
+          <p class="mt-1 text-3xl font-bold text-white">{{ formatUsdAmount(payAmount) }}</p>
         </div>
       </div>
       <!-- Stripe Payment Element -->
@@ -71,6 +71,7 @@ import { extractI18nErrorMessage } from '@/utils/apiError'
 import { paymentAPI } from '@/api/payment'
 import { useAppStore } from '@/stores'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
+import { formatPaymentAmount } from '@/components/payment/currency'
 import type { Stripe, StripeElements } from '@stripe/stripe-js'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -104,6 +105,10 @@ const selectedType = ref('')
 
 let stripeInstance: Stripe | null = null
 let elementsInstance: StripeElements | null = null
+
+function formatUsdAmount(value: number): string {
+  return formatPaymentAmount(value, 'USD')
+}
 
 onMounted(async () => {
   try {

@@ -111,7 +111,7 @@ onMounted(async () => {
     const checkoutOptions = {
       intent_id: snapshot.intentId,
       client_secret: snapshot.clientSecret,
-      currency: snapshot.currency || 'CNY',
+      currency: snapshot.currency || 'USD',
       country_code: snapshot.countryCode || 'CN',
       successUrl: buildSuccessUrl(snapshot),
     }

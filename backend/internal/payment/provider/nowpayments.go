@@ -28,7 +28,7 @@ const (
 	nowpaymentsWebhookTolerance = 5 * time.Minute
 
 	nowpaymentsDefaultPayCurrency  = "usdttrc20"
-	nowpaymentsDefaultFiatCurrency = "CNY"
+	nowpaymentsDefaultFiatCurrency = "USD"
 
 	// Payment statuses from NOWPayments API.
 	nowpaymentsStatusWaiting       = "waiting"
@@ -70,7 +70,7 @@ type NOWPayments struct {
 // NewNOWPayments creates a new NOWPayments provider instance.
 // Required config keys: apiKey, ipnSecret
 // Optional config keys: apiBase (default: https://api.nowpayments.io/v1),
-// payCurrency (default: usdttrc20), fiatCurrency (default: CNY)
+// payCurrency (default: usdttrc20), fiatCurrency (default: USD)
 func NewNOWPayments(instanceID string, config map[string]string) (*NOWPayments, error) {
 	for _, k := range []string{"apiKey", "ipnSecret"} {
 		if strings.TrimSpace(config[k]) == "" {
@@ -164,10 +164,7 @@ func (n *NOWPayments) payCurrency() string {
 }
 
 func (n *NOWPayments) fiatCurrency() string {
-	if n == nil {
-		return nowpaymentsDefaultFiatCurrency
-	}
-	return normalizeNOWPaymentsFiatCurrency(n.config["fiatCurrency"])
+	return nowpaymentsDefaultFiatCurrency
 }
 
 // availablePayCurrencies returns the set of pay_currency values configured
